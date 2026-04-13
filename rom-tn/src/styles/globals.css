@@ -1,7 +1,150 @@
 @import "tailwindcss";
 
+/* ─── Fonts (Kept from previous) ───────────────────────────── */
 @theme {
-	--font-sans:
-		var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
-		"Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ─── Design Tokens (Elegant & Accessible) ───────────────────── */
+:root {
+  /* Premium Dark Palette */
+  --bg-deep: #050505;
+  --bg-surface: #0f0f10;
+  --bg-card: #161618;
+  
+  --accent-gold: #c3a069; /* Elegant gold/brass accent */
+  --accent-blue: #3e63dd; /* High-contrast blue for accessibility */
+  --accent-white: #ffffff;
+  
+  --text-primary: #fcfcfc;
+  --text-secondary: #a1a1aa;
+  --text-dim: #71717a;
+  
+  --glass: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  
+  --shadow-luxe: 0 20px 50px rgba(0, 0, 0, 0.5);
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.3);
+  
+  --radius-elegant: 24px;
+  --transition-luxe: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Base Styles ────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  background-color: var(--bg-deep);
+}
+
+body {
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+}
+
+/* ─── Accessibility Styles (WCAG) ────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 4px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ─── Elegant UI Components ──────────────────────────────────── */
+
+.btn-luxe {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 36px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  border-radius: 100px;
+  transition: var(--transition-luxe);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.btn-primary {
+  background-color: var(--accent-white);
+  color: var(--bg-deep);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+}
+
+.btn-outline:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Glass Card */
+.glass-panel {
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-elegant);
+  transition: var(--transition-luxe);
+}
+
+.card-hover:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-luxe);
+}
+
+/* ─── Animations ────────────────────────────────────────────── */
+@keyframes mesh-drift {
+  0% { transform: scale(1) translate(0, 0); }
+  50% { transform: scale(1.1) translate(2%, 3%); }
+  100% { transform: scale(1) translate(0, 0); }
+}
+
+.mesh-background {
+  position: absolute;
+  inset: -10%;
+  background: radial-gradient(circle at 20% 30%, rgba(62, 99, 221, 0.08) 0%, transparent 40%),
+              radial-gradient(circle at 80% 70%, rgba(195, 160, 105, 0.08) 0%, transparent 40%);
+  filter: blur(80px);
+  z-index: 0;
+  animation: mesh-drift 15s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.reveal-text {
+  mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+  mask-size: 100% 200%;
+  mask-position: bottom;
+  transition: mask-position 1s ease-out;
+}
+
+.reveal-text.active {
+  mask-position: top;
 }
