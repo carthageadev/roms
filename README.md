@@ -1,5 +1,7 @@
 # roms.tn
 
+![roms.tn preview](public/preview.png)
+
 ## Overview
 **roms.tn** is the ultimate destination for retro gaming enthusiasts. Our platform allows you to discover, explore, and play classic ROMs directly in your browser with high-fidelity rendering and accurate input support.
 
