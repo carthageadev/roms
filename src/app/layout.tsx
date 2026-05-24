@@ -9,8 +9,29 @@ import { CustomCursor } from "./_components/CustomCursor";
 export const metadata: Metadata = {
 	title: "ROM.TN — Discover & Play Classic ROMs",
 	description:
-		"The indie home for retro gaming. Play thousands of classic titles directly in your browser.",
-	icons: [{ rel: "icon", url: "/favicon.ico" }],
+		"The indie home for retro gaming. Play thousands of classic titles directly in your browser with high-fidelity emulation and zero lag.",
+	icons: [{ rel: "icon", url: "/icon.svg" }],
+	openGraph: {
+		title: "ROM.TN — Retro Gaming Archives",
+		description: "Rediscover the titles that defined a generation. Curated classics, optimized for the web.",
+		url: "https://roms.tn",
+		siteName: "roms.tn",
+		images: [
+			{
+				url: "/preview.png",
+				width: 1200,
+				height: 630,
+			},
+		],
+		locale: "en_US",
+		type: "website",
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "ROM.TN — Retro Gaming Archives",
+		description: "Rediscover the titles that defined a generation. Curated classics, optimized for the web.",
+		images: ["/preview.png"],
+	},
 };
 
 const dmSans = DM_Sans({
