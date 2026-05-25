@@ -7,15 +7,15 @@ import { TRPCReactProvider } from "~/trpc/react";
 import { CustomCursor } from "./_components/CustomCursor";
 
 export const metadata: Metadata = {
-	title: "ROM.TN — Discover & Play Classic ROMs",
+	title: "Roms.tn — The Vault of Classic Gaming",
 	description:
-		"The indie home for retro gaming. Play thousands of classic titles directly in your browser with high-fidelity emulation and zero lag.",
+		"Discover, preserve, and play thousands of legendary retro titles directly in your browser. Roms.tn is the definitive archive for classic gaming hardware emulation.",
 	icons: [{ rel: "icon", url: "/icon.svg" }],
 	openGraph: {
-		title: "ROM.TN — Retro Gaming Archives",
-		description: "Rediscover the titles that defined a generation. Curated classics, optimized for the web.",
+		title: "Roms.tn — Play Classic Retro Games Online",
+		description: "The ultimate minimalist archive for retro consoles. High-fidelity emulation, zero latency, straight in your browser.",
 		url: "https://roms.tn",
-		siteName: "roms.tn",
+		siteName: "Roms.tn",
 		images: [
 			{
 				url: "/preview.png",
@@ -28,8 +28,8 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "ROM.TN — Retro Gaming Archives",
-		description: "Rediscover the titles that defined a generation. Curated classics, optimized for the web.",
+		title: "Roms.tn — The Vault of Classic Gaming",
+		description: "Rediscover the titles that defined a generation. High-fidelity retro emulation on the web.",
 		images: ["/preview.png"],
 	},
 };
