@@ -8,6 +8,9 @@ dist/
 .env
 .env*.local
 
+# cartridge logic (3d models, textures, scraper — kept local only)
+.cartridge-logic/
+
 # vercel
 .vercel
 

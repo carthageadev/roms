@@ -1,61 +1,32 @@
+import { existsSync, readFileSync } from "node:fs";
 import type { ServerResponse } from "node:http";
+import { join } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
-const ALLOWED_ASSETS = new Set([
-	"new-n64cart.glb",
-	"newbase.jpg",
-	"newbase_Normal.tga.png",
-	"newbase_Roughness.tga.png",
-]);
+const CARTRIDGE_ART_DIR = join(process.cwd(), ".cartridge-logic/src-assets/art");
 
-const ORIGIN_BASE = "https://archive.org/download/7535476";
-
-// Dev-only mirror of the Vercel function in api/asset/[file].ts. Uses fetch
-// (which follows archive.org's datanode redirects) and streams the body back
-// same-origin, avoiding CORS entirely.
-function archiveAssetProxy(): Plugin {
-	const memoryCache = new Map<string, Buffer>();
+function cartridgeArtProxy(): Plugin {
 	return {
-		name: "archive-asset-proxy",
+		name: "cartridge-art-proxy",
 		configureServer(server) {
-			server.middlewares.use("/api/asset", (req, res: ServerResponse) => {
+			server.middlewares.use("/api/asset/n64", (req, res: ServerResponse) => {
 				const file = decodeURIComponent((req.url ?? "").replace(/^\//, ""));
-				if (!ALLOWED_ASSETS.has(file)) {
+				const filePath = join(CARTRIDGE_ART_DIR, "n64", file);
+				if (!existsSync(filePath)) {
 					res.statusCode = 404;
 					res.end();
 					return;
 				}
-				const cached = memoryCache.get(file);
-				if (cached) {
-					res.end(cached);
-					return;
-				}
-				fetch(`${ORIGIN_BASE}/${file}`)
-					.then(async (up) => {
-						if (!up.ok) {
-							res.statusCode = 502;
-							res.end();
-							return;
-						}
-						const buf = Buffer.from(await up.arrayBuffer());
-						memoryCache.set(file, buf);
-						res.setHeader(
-							"Content-Type",
-							up.headers.get("content-type") ?? "application/octet-stream",
-						);
-						res.end(buf);
-					})
-					.catch(() => {
-						res.statusCode = 502;
-						res.end();
-					});
+				res.setHeader("Content-Type", "image/png");
+				res.setHeader("Cache-Control", "public, max-age=86400");
+				res.end(readFileSync(filePath));
 			});
 		},
 	};
 }
 
 export default defineConfig({
-	plugins: [react(), tailwindcss(), archiveAssetProxy()],
+	plugins: [react(), tailwindcss(), cartridgeArtProxy()],
 });
