@@ -3,7 +3,6 @@ import { CartridgeSection } from "../components/CartridgeSection";
 import { Hero } from "../components/Hero";
 import { Navbar } from "../components/Navbar";
 
-// Featured covers are bundled at build time (scraped via scripts/scrape-art.ts)
 const covers = import.meta.glob("../assets/art/covers/*.png", {
 	eager: true,
 	query: "?url",
