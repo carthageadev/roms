@@ -3,6 +3,15 @@ import { CartridgeSection } from "../components/CartridgeSection";
 import { Hero } from "../components/Hero";
 import { Navbar } from "../components/Navbar";
 
+// Featured covers are bundled at build time (scraped via scripts/scrape-art.ts)
+const covers = import.meta.glob("../assets/art/covers/*.png", {
+	eager: true,
+	query: "?url",
+	import: "default",
+}) as Record<string, string>;
+
+const cover = (slug: string) => covers[`../assets/art/covers/${slug}.png`];
+
 export function HomePage() {
 	return (
 		<main className="relative min-h-screen">
@@ -51,13 +60,13 @@ export function HomePage() {
 
 						<div className="relative aspect-square flex-1">
 							<div className="absolute inset-0 rounded-full bg-accent-gold/5 blur-[100px]" />
-							<div className="glass-panel relative flex h-full w-full items-center justify-center overflow-hidden p-12 shadow-2xl">
-								<div className="flex h-full w-full animate-float items-center justify-center rounded-lg border border-white/5 bg-void/40">
-									{/* Placeholder for high-end graphic */}
-									<div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/10">
-										<div className="h-12 w-12 rounded-full bg-white/5" />
-									</div>
-								</div>
+							<div className="glass-panel relative h-full w-full overflow-hidden shadow-2xl">
+								<img
+									alt="The Legend of Zelda Ocarina of Time cover art"
+									className="h-full w-full animate-float object-cover"
+									src={cover("ocarina-of-time")}
+								/>
+								<div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 							</div>
 						</div>
 					</div>
@@ -67,23 +76,21 @@ export function HomePage() {
 							{
 								title: "Metroid Prime",
 								label: "GameCube",
-								color: "bg-blue-900/40",
+								art: "metroid-prime",
 							},
 							{
 								title: "Metal Gear Solid 2",
 								label: "PlayStation 2",
-								color: "bg-gray-800/40",
+								art: "metal-gear-solid-2",
 							},
-							{
-								title: "Shenmue",
-								label: "Dreamcast",
-								color: "bg-orange-900/40",
-							},
+							{ title: "Shenmue", label: "Dreamcast", art: "shenmue" },
 						].map((game) => (
 							<div className="group cursor-pointer" key={game.title}>
 								<div className="glass-panel mb-8 aspect-[16/10] overflow-hidden">
-									<div
-										className={`h-full w-full ${game.color} blur-xl transition-transform duration-[2s] group-hover:scale-110`}
+									<img
+										alt={`${game.title} cover art`}
+										className="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-110"
+										src={cover(game.art)}
 									/>
 								</div>
 								<div className="flex items-center justify-between px-2">
@@ -100,51 +107,53 @@ export function HomePage() {
 				</div>
 			</section>
 
-			{/* Footer - Elegant & Concise */}
-			<footer className="border-glass-border border-t bg-deep py-32">
+			{/* Footer */}
+			<footer className="border-glass-border border-t bg-deep py-24">
 				<div className="mx-auto max-w-7xl px-6">
-					<div className="mb-20 flex flex-col items-center justify-between gap-12 md:flex-row">
-						<div className="flex items-center gap-3">
-							<div className="h-6 w-6 rounded bg-white" />
-							<span className="font-display font-medium text-2xl tracking-tight">
-								rom.tn
-							</span>
+					<div className="mb-16 flex flex-col items-center gap-12 md:flex-row md:items-start md:justify-between">
+						<div className="flex flex-col items-center gap-4 md:items-start">
+							<div className="flex items-center gap-3">
+								<img alt="" className="h-7 w-7" src="/icon.svg" />
+								<span className="font-display font-medium text-2xl tracking-tight">
+									roms.tn
+								</span>
+							</div>
+							<p className="max-w-xs text-center text-sm text-text-secondary leading-relaxed md:text-left">
+								Preserving the legacy of classic gaming. Play thousands of
+								retro titles directly in your browser.
+							</p>
 						</div>
-						<ul className="flex flex-wrap items-center justify-center gap-10 font-bold text-[10px] text-text-dim uppercase tracking-[0.3em]">
-							<li>
-								<a
-									className="transition-colors hover:text-white"
-									href="#archive"
-								>
-									Archive
-								</a>
-							</li>
-							<li>
-								<a className="transition-colors hover:text-white" href="#dev">
-									API
-								</a>
-							</li>
-							<li>
-								<Link
-									className="transition-colors hover:text-white"
-									to="/legal"
-								>
-									Copyright
-								</Link>
-							</li>
-							<li>
-								<a
-									className="transition-colors hover:text-white"
-									href="#discord"
-								>
-									Discord
-								</a>
-							</li>
-						</ul>
+
+						<div className="flex flex-wrap items-center justify-center gap-10 font-bold text-[10px] text-text-dim uppercase tracking-[0.3em]">
+							<a className="transition-colors hover:text-white" href="#library">
+								Library
+							</a>
+							<Link className="transition-colors hover:text-white" to="/about">
+								About
+							</Link>
+							<Link className="transition-colors hover:text-white" to="/legal">
+								Legal
+							</Link>
+							<a
+								className="transition-colors hover:text-white"
+								href="#discord"
+							>
+								Discord
+							</a>
+						</div>
 					</div>
 
-					<div className="text-center font-bold text-[10px] text-text-dim uppercase tracking-[0.5em] opacity-50">
-						Preserving Virtual History — All Rights Reserved 2026
+					<div className="flex flex-col items-center justify-between gap-6 border-t border-glass-border pt-10 md:flex-row">
+						<span className="font-bold text-[10px] text-text-dim uppercase tracking-[0.4em]">
+							All Rights Reserved 2026
+						</span>
+						<button
+							className="glass-panel flex h-10 w-10 items-center justify-center rounded-full border border-white/10 transition-colors hover:bg-white/10"
+							onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+							type="button"
+						>
+							↑
+						</button>
 					</div>
 				</div>
 			</footer>

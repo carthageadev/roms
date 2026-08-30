@@ -1,18 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { PLATFORMS } from "../data/games";
-import { getCachedArt, putCachedArt } from "../lib/artCache";
-import { fetchScraperLabel, makeFallbackLabel } from "../lib/labelArt";
 import Scene from "./CartridgeScene";
 
 const platform = PLATFORMS[0];
 const games = platform.games;
 
+// Cartridge labels are bundled at build time (scraped once via
+// scripts/scrape-art.ts into src/assets/art). The landing page never
+// hits the ScreenScraper API at runtime.
+const bundledLabels = import.meta.glob("../assets/art/n64/*.png", {
+	eager: true,
+	query: "?url",
+	import: "default",
+}) as Record<string, string>;
+
+const slug = (s: string) =>
+	s
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/(^-|-$)/g, "");
+
+function bundledLabelUrl(title: string, artSlug?: string) {
+	return (
+		bundledLabels[`../assets/art/n64/${artSlug ?? slug(title)}.png`] ?? null
+	);
+}
+
 export function CartridgeSection() {
 	const [selected, setSelected] = useState(0);
 	const [launching, setLaunching] = useState(false);
-	const [artMap, setArtMap] = useState<Record<string, string>>({});
-	const artUrls = useRef(new Map<string, string>());
 
 	// Mutable store read by the 3D frame loop directly; keeps the memoized
 	// Scene from re-rendering on selection changes (the keypress hitch).
@@ -23,6 +40,14 @@ export function CartridgeSection() {
 	useEffect(() => {
 		carousel.launching = launching;
 	}, [launching, carousel]);
+
+	const artMap = useMemo(
+		() =>
+			Object.fromEntries(
+				games.map((g) => [g.title, bundledLabelUrl(g.title, g.art)]),
+			) as Record<string, string | null>,
+		[],
+	);
 
 	const pick = useCallback(
 		(index: number) =>
@@ -50,70 +75,12 @@ export function CartridgeSection() {
 		return () => window.removeEventListener("keydown", onKey);
 	}, [step, launch]);
 
-	// Resolve label art per game: IndexedDB cache -> ScreenScraper (when
-	// credentials exist) -> canvas-generated label. One at a time, nearest
-	// to the selection first.
-	useEffect(() => {
-		const controller = new AbortController();
-		const { signal } = controller;
-		const pending = games.map((g, gameIndex) => ({ g, gameIndex }));
-
-		const publish = (key: string, blob: Blob) => {
-			const objectUrl = URL.createObjectURL(blob);
-			const previous = artUrls.current.get(key);
-			artUrls.current.set(key, objectUrl);
-			setArtMap((prev) => ({ ...prev, [key]: objectUrl }));
-			if (previous)
-				requestAnimationFrame(() =>
-					requestAnimationFrame(() => URL.revokeObjectURL(previous)),
-				);
-		};
-
-		(async () => {
-			while (pending.length && !signal.aborted) {
-				// Re-sort each turn so the selection's neighbours resolve first
-				pending.sort(
-					(a, b) =>
-						Math.min(
-							Math.abs(a.gameIndex - selected),
-							games.length - Math.abs(a.gameIndex - selected),
-						) -
-						Math.min(
-							Math.abs(b.gameIndex - selected),
-							games.length - Math.abs(b.gameIndex - selected),
-						),
-				);
-				const next = pending.shift();
-				if (!next) break;
-				const { g } = next;
-				try {
-					let blob = await getCachedArt(`${platform.systemId}:${g.title}`);
-					if (!blob) {
-						blob =
-							(await fetchScraperLabel(
-								g.title,
-								platform.systemId,
-								g.search ?? g.title,
-								signal,
-							)) ?? (await makeFallbackLabel(g.title));
-						await putCachedArt(`${platform.systemId}:${g.title}`, blob);
-					}
-					if (!signal.aborted) publish(g.title, blob);
-				} catch {
-					/* aborted or failed; try the next one */
-				}
-			}
-		})();
-
-		return () => controller.abort();
-	}, [selected]);
-
 	const game = games[selected];
 
 	return (
-		<section className="relative px-6 py-32" id="library">
+		<section className="relative px-6 py-40" id="library">
 			<div className="mx-auto max-w-7xl">
-				<header className="mb-8 flex flex-col justify-between gap-8 md:flex-row md:items-end">
+				<header className="mb-14 flex flex-col justify-between gap-8 md:flex-row md:items-end">
 					<div className="max-w-xl">
 						<h2 className="mb-6 font-display font-medium text-4xl tracking-tight md:text-5xl lg:text-6xl">
 							The Collection
@@ -128,7 +95,7 @@ export function CartridgeSection() {
 					</p>
 				</header>
 
-				<div className="glass-panel relative h-[420px] overflow-hidden rounded-3xl border border-white/5 md:h-[520px]">
+				<div className="glass-panel relative h-[500px] overflow-hidden rounded-3xl border border-white/5 md:h-[620px]">
 					<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.06),transparent_65%)]" />
 					<Scene
 						artMap={artMap}
@@ -149,7 +116,7 @@ export function CartridgeSection() {
 						</span>
 					</div>
 
-					<div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-4 bg-gradient-to-t from-black/80 to-transparent p-6 pt-14">
+					<div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-4 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-6 pt-20">
 						<h3 className="font-bold font-display text-2xl tracking-tight md:text-3xl">
 							{game.title}
 						</h3>
