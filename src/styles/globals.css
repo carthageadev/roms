@@ -126,6 +126,19 @@ body {
 }
 
 /* ─── Animations ────────────────────────────────────────────── */
+@keyframes scroll-line {
+	0% {
+		transform: translateY(-100%);
+	}
+	100% {
+		transform: translateY(250%);
+	}
+}
+
+.animate-scroll-line {
+	animation: scroll-line 1.8s ease-in-out infinite;
+}
+
 @keyframes mesh-drift {
 	0% {
 		transform: scale(1) translate(0, 0);
