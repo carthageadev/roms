@@ -90,16 +90,6 @@ export function Hero() {
 					</div>
 				</div>
 			</div>
-
-			{/* Scroll Indicator */}
-			<div className="absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-3">
-				<span className="font-bold text-[9px] text-text-dim uppercase tracking-[0.4em]">
-					Scroll
-				</span>
-				<div className="relative h-10 w-[1px] overflow-hidden bg-white/20">
-					<div className="absolute top-0 left-0 h-4 w-full animate-scroll-line bg-white" />
-				</div>
-			</div>
 		</section>
 	);
 }
