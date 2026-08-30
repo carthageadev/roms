@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
-/* ─── Fonts (Kept from previous) ───────────────────────────── */
+/* ─── Fonts (loaded via Google Fonts in index.html) ─────────── */
+:root {
+  --font-dm-sans: "DM Sans";
+  --font-syne: "Syne";
+}
+
 @theme {
   --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-syne), ui-sans-serif, system-ui, sans-serif;

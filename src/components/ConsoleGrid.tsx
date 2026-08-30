@@ -1,12 +1,8 @@
-"use client";
-
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
+gsap.registerPlugin(ScrollTrigger);
 
 const SYSTEMS = [
   { name: "Nintendo 64", sub: "1996 Generation", count: "350+ Titles" },
@@ -46,7 +42,7 @@ export function ConsoleGrid() {
               The Collection
             </h2>
             <p className="text-text-secondary text-lg leading-relaxed">
-              Our archives house the definitive versions of classics, optimized for 
+              Our archives house the definitive versions of classics, optimized for
               high-fidelity rendering and input accuracy.
             </p>
           </div>
@@ -67,7 +63,7 @@ export function ConsoleGrid() {
               <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mb-10 border border-white/5">
                  <div className="w-4 h-4 rounded-sm border border-white/40 group-hover:bg-white" />
               </div>
-              
+
               <div className="mt-auto">
                 <h3 id={`sys-title-${i}`} className="font-display font-bold text-2xl mb-2">
                   {system.name}

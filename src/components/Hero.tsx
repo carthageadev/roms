@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { AwardBadge } from "./AwardBadge";
@@ -35,7 +33,7 @@ export function Hero() {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center pt-24 overflow-hidden px-6">
       <div className="mesh-background" />
-      
+
       <div className="relative z-10 w-full max-w-5xl text-center">
         <div ref={containerRef}>
           <div className="mb-10 inline-flex flex-col sm:flex-row items-center gap-6">
@@ -48,7 +46,7 @@ export function Hero() {
             <AwardBadge type="product-of-the-day" place={1} link="https://producthunt.com" />
           </div>
 
-          <h1 
+          <h1
             ref={titleRef}
             className="font-display font-medium text-7xl md:text-8xl lg:text-9xl mb-10 tracking-tight leading-[0.95]"
           >
@@ -56,11 +54,11 @@ export function Hero() {
             <span className="italic font-normal serif italic opacity-80">refined.</span>
           </h1>
 
-          <p 
+          <p
             ref={subtitleRef}
             className="mx-auto max-w-2xl text-text-secondary text-lg md:text-xl mb-14 font-sans leading-relaxed"
           >
-            Rediscover the titles that defined a generation. rom.tn provides a curated, 
+            Rediscover the titles that defined a generation. rom.tn provides a curated,
             high-fidelity environment for retro gaming preservation and browser emulation.
           </p>
 
