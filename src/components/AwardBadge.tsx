@@ -1,6 +1,5 @@
-"use client";
 
-import React, { type MouseEvent, useEffect, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 
 type AwardBadgeType = "golden-kitty" | "product-of-the-day" | "product-of-the-month" | "product-of-the-week";
 
@@ -38,10 +37,10 @@ export const AwardBadge = ({ type, place, link }: AwardBadgeProps) => {
   const [disableInOutOverlayAnimation, setDisableInOutOverlayAnimation] = useState<boolean>(true);
   const [disableOverlayAnimation, setDisableOverlayAnimation] = useState<boolean>(false);
   const [isTimeoutFinished, setIsTimeoutFinished] = useState<boolean>(false);
-  const enterTimeout = useRef<NodeJS.Timeout | null>(null);
-  const leaveTimeout1 = useRef<NodeJS.Timeout | null>(null);
-  const leaveTimeout2 = useRef<NodeJS.Timeout | null>(null);
-  const leaveTimeout3 = useRef<NodeJS.Timeout | null>(null);
+  const enterTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const leaveTimeout1 = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const leaveTimeout2 = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const leaveTimeout3 = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getDimensions = () => {
     const left = ref?.current?.getBoundingClientRect()?.left || 0;
@@ -330,3 +329,4 @@ export const AwardBadge = ({ type, place, link }: AwardBadgeProps) => {
     </a>
   );
 };
+
