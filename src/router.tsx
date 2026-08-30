@@ -1,9 +1,15 @@
-import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/react-router";
+import {
+	createRootRoute,
+	createRoute,
+	createRouter,
+	Outlet,
+} from "@tanstack/react-router";
 
 import { CustomCursor } from "./components/CustomCursor";
-import { HomePage } from "./pages/Home";
 import { AboutPage } from "./pages/About";
+import { HomePage } from "./pages/Home";
 import { LegalPage } from "./pages/Legal";
+import { NotFoundPage } from "./pages/NotFound";
 
 const rootRoute = createRootRoute({
 	component: () => (
@@ -12,6 +18,7 @@ const rootRoute = createRootRoute({
 			<Outlet />
 		</>
 	),
+	notFoundComponent: NotFoundPage,
 });
 
 const indexRoute = createRoute({
