@@ -59,7 +59,7 @@ const easeOutBack = (p: number) => 1 + 2.4 * (p - 1) ** 3 + 1.4 * (p - 1) ** 2;
 const easeInOutQuad = (p: number) =>
 	p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
 
-const CART_HEIGHT = 2.35;
+const CART_HEIGHT = 2.1;
 
 useGLTF.setDecoderPath(
 	"https://www.gstatic.com/draco/versioned/decoders/1.5.7/",
@@ -380,7 +380,7 @@ function wrapOffset(rawOffset: number, count: number) {
 
 interface SceneContentsProps {
 	games: Game[];
-	artMap: Record<string, string>;
+	artMap: Record<string, string | null>;
 	carousel: { selected: number; launching: boolean };
 	onPick: (index: number) => void;
 	onLaunch: () => void;
@@ -496,7 +496,7 @@ const Scene = memo(function Scene({
 }: SceneContentsProps) {
 	return (
 		<Canvas
-			camera={{ position: [0, 0.15, 7.4], fov: 35 }}
+			camera={{ position: [0, -0.45, 10.2], fov: 34 }}
 			dpr={[1, 1.75]}
 			gl={{ alpha: true, antialias: true }}
 			onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
