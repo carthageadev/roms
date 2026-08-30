@@ -1,83 +1,103 @@
-import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
+import { useEffect, useRef } from "react";
 import { AwardBadge } from "./AwardBadge";
 
 export function Hero() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
-  const subtitleRef = useRef<HTMLParagraphElement>(null);
-  const ctaRef = useRef<HTMLDivElement>(null);
+	const containerRef = useRef<HTMLDivElement>(null);
+	const titleRef = useRef<HTMLHeadingElement>(null);
+	const subtitleRef = useRef<HTMLParagraphElement>(null);
+	const ctaRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const tl = gsap.timeline({ defaults: { ease: "expo.out" } });
+	useEffect(() => {
+		const tl = gsap.timeline({ defaults: { ease: "expo.out" } });
 
-    tl.fromTo(
-      titleRef.current,
-      { y: 60, opacity: 0 },
-      { y: 0, opacity: 1, duration: 1.8, delay: 0.5 }
-    )
-    .fromTo(
-      subtitleRef.current,
-      { y: 30, opacity: 0 },
-      { y: 0, opacity: 1, duration: 1.5 },
-      "-=1.4"
-    )
-    .fromTo(
-      ctaRef.current,
-      { y: 20, opacity: 0 },
-      { y: 0, opacity: 1, duration: 1.2 },
-      "-=1.2"
-    );
-  }, []);
+		tl.fromTo(
+			titleRef.current,
+			{ y: 60, opacity: 0 },
+			{ y: 0, opacity: 1, duration: 1.8, delay: 0.5 },
+		)
+			.fromTo(
+				subtitleRef.current,
+				{ y: 30, opacity: 0 },
+				{ y: 0, opacity: 1, duration: 1.5 },
+				"-=1.4",
+			)
+			.fromTo(
+				ctaRef.current,
+				{ y: 20, opacity: 0 },
+				{ y: 0, opacity: 1, duration: 1.2 },
+				"-=1.2",
+			);
+	}, []);
 
-  return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center pt-24 overflow-hidden px-6">
-      <div className="mesh-background" />
+	return (
+		<section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pt-24">
+			<div className="mesh-background" />
 
-      <div className="relative z-10 w-full max-w-5xl text-center">
-        <div ref={containerRef}>
-          <div className="mb-10 inline-flex flex-col sm:flex-row items-center gap-6">
-            <div className="inline-flex items-center gap-3 px-4 py-2 glass-panel !bg-white/5 !rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent-blue animate-pulse" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-text-secondary">
-                A New Era for Preserving Legends
-              </span>
-            </div>
-            <AwardBadge type="product-of-the-day" place={1} link="https://producthunt.com" />
-          </div>
+			<div className="relative z-10 w-full max-w-5xl text-center">
+				<div ref={containerRef}>
+					<div className="mb-10 inline-flex flex-col items-center gap-6 sm:flex-row">
+						<div className="glass-panel !bg-white/5 !rounded-full inline-flex items-center gap-3 px-4 py-2">
+							<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-blue" />
+							<span className="font-bold text-[10px] text-text-secondary uppercase tracking-[0.25em]">
+								A New Era for Preserving Legends
+							</span>
+						</div>
+						<AwardBadge
+							link="https://producthunt.com"
+							place={1}
+							type="product-of-the-day"
+						/>
+					</div>
 
-          <h1
-            ref={titleRef}
-            className="font-display font-medium text-7xl md:text-8xl lg:text-9xl mb-10 tracking-tight leading-[0.95]"
-          >
-            Nostalgia, <br />
-            <span className="italic font-normal serif italic opacity-80">refined.</span>
-          </h1>
+					<h1
+						className="mb-10 font-display font-medium text-7xl leading-[0.95] tracking-tight md:text-8xl lg:text-9xl"
+						ref={titleRef}
+					>
+						Nostalgia, <br />
+						<span className="serif font-normal italic italic opacity-80">
+							refined.
+						</span>
+					</h1>
 
-          <p
-            ref={subtitleRef}
-            className="mx-auto max-w-2xl text-text-secondary text-lg md:text-xl mb-14 font-sans leading-relaxed"
-          >
-            Rediscover the titles that defined a generation. rom.tn provides a curated,
-            high-fidelity environment for retro gaming preservation and browser emulation.
-          </p>
+					<p
+						className="mx-auto mb-14 max-w-2xl font-sans text-lg text-text-secondary leading-relaxed md:text-xl"
+						ref={subtitleRef}
+					>
+						Rediscover the titles that defined a generation. rom.tn provides a
+						curated, high-fidelity environment for retro gaming preservation and
+						browser emulation.
+					</p>
 
-          <div ref={ctaRef} className="flex flex-col sm:flex-row items-center justify-center gap-8">
-            <button className="btn-luxe btn-primary min-w-[200px]" aria-label="Explore Library">
-              Explore Library
-            </button>
-            <button className="btn-luxe btn-outline min-w-[200px]" aria-label="How it works">
-              Learn the Craft
-            </button>
-          </div>
-        </div>
-      </div>
+					<div
+						className="flex flex-col items-center justify-center gap-8 sm:flex-row"
+						ref={ctaRef}
+					>
+						<button
+							aria-label="Explore Library"
+							className="btn-luxe btn-primary min-w-[200px]"
+							type="button"
+						>
+							Explore Library
+						</button>
+						<button
+							aria-label="How it works"
+							className="btn-luxe btn-outline min-w-[200px]"
+							type="button"
+						>
+							Learn the Craft
+						</button>
+					</div>
+				</div>
+			</div>
 
-      {/* Subtle Scroll Indicator */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 opacity-30">
-        <span className="text-[9px] uppercase tracking-[0.4em] font-bold">Scroll</span>
-        <div className="w-[1px] h-12 bg-gradient-to-b from-white to-transparent" />
-      </div>
-    </section>
-  );
+			{/* Subtle Scroll Indicator */}
+			<div className="absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-4 opacity-30">
+				<span className="font-bold text-[9px] uppercase tracking-[0.4em]">
+					Scroll
+				</span>
+				<div className="h-12 w-[1px] bg-gradient-to-b from-white to-transparent" />
+			</div>
+		</section>
+	);
 }
