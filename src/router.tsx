@@ -5,19 +5,13 @@ import {
 	Outlet,
 } from "@tanstack/react-router";
 
-import { CustomCursor } from "./components/CustomCursor";
 import { AboutPage } from "./pages/About";
 import { HomePage } from "./pages/Home";
 import { LegalPage } from "./pages/Legal";
 import { NotFoundPage } from "./pages/NotFound";
 
 const rootRoute = createRootRoute({
-	component: () => (
-		<>
-			<CustomCursor />
-			<Outlet />
-		</>
-	),
+	component: () => <Outlet />,
 	notFoundComponent: NotFoundPage,
 });
 

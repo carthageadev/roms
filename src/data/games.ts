@@ -2,6 +2,8 @@ export interface Game {
 	title: string;
 	/** Optional better search term for the art provider */
 	search?: string;
+	/** Bundled art filename slug in src/assets/art/n64 (defaults to slugified title) */
+	art?: string;
 }
 
 export interface Platform {
@@ -28,6 +30,7 @@ export const PLATFORMS: Platform[] = [
 			{
 				title: "The Legend of Zelda: Ocarina of Time",
 				search: "Ocarina of Time",
+				art: "ocarina-of-time",
 			},
 			{ title: "Star Fox 64" },
 			{ title: "GoldenEye 007" },
