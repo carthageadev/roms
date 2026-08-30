@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 
@@ -36,12 +34,12 @@ export function CustomCursor() {
 
   return (
     <>
-      <div 
+      <div
         ref={cursorRef}
         className="fixed top-0 left-0 w-1 h-1 bg-white rounded-full pointer-events-none z-[9999] -translate-x-1/2 -translate-y-1/2 hidden md:block"
         aria-hidden="true"
       />
-      <div 
+      <div
         ref={followerRef}
         className="fixed top-0 left-0 w-8 h-8 border border-white/20 rounded-full pointer-events-none z-[9998] -translate-x-1/2 -translate-y-1/2 hidden md:block"
         style={{ backdropFilter: 'blur(1px)' }}
