@@ -15,6 +15,14 @@ const CARTRIDGES = [
 	{ title: "Donkey Kong 64", art: "donkey-kong-64" },
 ];
 
+const labels = import.meta.glob("../assets/art/n64/*.png", {
+	eager: true,
+	query: "?url",
+	import: "default",
+}) as Record<string, string>;
+
+const label = (slug: string) => labels[`../assets/art/n64/${slug}.png`];
+
 export function CartridgeSection() {
 	const [selected, setSelected] = useState(0);
 	const game = CARTRIDGES[selected];
@@ -47,7 +55,7 @@ export function CartridgeSection() {
 								<img
 									alt={`${game.title} cartridge label`}
 									className="h-full w-full object-cover"
-									src={`/api/asset/n64/${game.art}.png`}
+									src={label(game.art)}
 								/>
 							</div>
 						</div>
