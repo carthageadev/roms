@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ConsoleGrid } from "../components/ConsoleGrid";
+import { CartridgeSection } from "../components/CartridgeSection";
 import { Hero } from "../components/Hero";
 import { Navbar } from "../components/Navbar";
 
@@ -14,7 +14,7 @@ export function HomePage() {
 				<div className="h-[1px] w-full max-w-7xl bg-gradient-to-r from-transparent via-glass-border to-transparent" />
 			</div>
 
-			<ConsoleGrid />
+			<CartridgeSection />
 
 			{/* Featured Section - Museum/Gallery Style */}
 			<section className="bg-surface/30 py-40">
