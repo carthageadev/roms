@@ -25,10 +25,15 @@ const label = (slug: string) => labels[`../assets/art/n64/${slug}.png`];
 
 export function CartridgeSection() {
 	const [selected, setSelected] = useState(0);
+	const [isTransitioning, setIsTransitioning] = useState(false);
 	const game = CARTRIDGES[selected];
 
-	const step = (delta: number) =>
+	const step = (delta: number) => {
+		if (isTransitioning) return;
+		setIsTransitioning(true);
 		setSelected((prev) => (prev + delta + CARTRIDGES.length) % CARTRIDGES.length);
+		setTimeout(() => setIsTransitioning(false), 180);
+	};
 
 	return (
 		<section className="relative px-6 py-40" id="library">
@@ -51,11 +56,15 @@ export function CartridgeSection() {
 				<div className="glass-panel relative overflow-hidden rounded-3xl border border-white/5 p-8">
 					<div className="flex flex-col items-center gap-8 md:flex-row">
 						<div className="flex-1">
-							<div className="mx-auto w-full max-w-[260px] overflow-hidden rounded-2xl border border-white/10 bg-black/60 p-3 shadow-2xl">
-								<div className="overflow-hidden rounded-xl border border-white/5">
+							<div className="mx-auto w-full max-w-[260px] overflow-hidden rounded-3xl border border-white/10 bg-black/60 p-3 shadow-2xl">
+								<div className="overflow-hidden rounded-2xl border border-white/5">
 									<img
 										alt={`${game.title} cartridge label`}
-										className="h-auto w-full"
+										className={`h-auto w-full transition-all duration-150 ease-out ${
+											isTransitioning
+												? "scale-95 opacity-0 blur-sm"
+												: "scale-100 opacity-100 blur-0"
+										}`}
 										src={label(game.art)}
 									/>
 								</div>
