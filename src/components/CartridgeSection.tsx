@@ -31,8 +31,10 @@ export function CartridgeSection() {
 	const step = (delta: number) => {
 		if (isTransitioning) return;
 		setIsTransitioning(true);
-		setSelected((prev) => (prev + delta + CARTRIDGES.length) % CARTRIDGES.length);
-		setTimeout(() => setIsTransitioning(false), 180);
+		setTimeout(() => {
+			setSelected((prev) => (prev + delta + CARTRIDGES.length) % CARTRIDGES.length);
+			setTimeout(() => setIsTransitioning(false), 30);
+		}, 150);
 	};
 
 	return (
