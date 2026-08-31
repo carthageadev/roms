@@ -59,8 +59,8 @@ export function HomePage() {
 
 					<div className="relative flex-1">
 						<div className="absolute inset-0 rounded-full bg-accent-gold/5 blur-[100px]" />
-						<div className="glass-panel relative mx-auto aspect-[3/4] w-full max-w-[380px] overflow-hidden rounded-2xl border border-white/10 p-3 shadow-2xl">
-							<div className="h-full w-full overflow-hidden rounded-xl border border-white/5">
+						<div className="glass-panel relative mx-auto aspect-[3/4] w-full max-w-[380px] overflow-hidden rounded-3xl border border-white/10 p-4 shadow-2xl">
+							<div className="h-full w-full overflow-hidden rounded-2xl border border-white/5">
 								<img
 									alt="The Legend of Zelda Ocarina of Time cover art"
 									className="h-full w-full object-contain"
@@ -82,8 +82,8 @@ export function HomePage() {
 						{ title: "Shenmue", label: "Dreamcast", art: "shenmue" },
 					].map((game) => (
 						<div className="group cursor-pointer" key={game.title}>
-							<div className="glass-panel mb-8 overflow-hidden rounded-2xl border border-white/10 p-2 transition-all group-hover:border-white/20 group-hover:shadow-lg">
-								<div className="aspect-[4/3] overflow-hidden rounded-xl border border-white/5">
+							<div className="glass-panel mb-8 overflow-hidden rounded-3xl border border-white/10 p-2 transition-all duration-150 group-hover:border-white/20 group-hover:shadow-lg">
+								<div className="aspect-[4/3] overflow-hidden rounded-2xl border border-white/5">
 									<img
 										alt={`${game.title} cover art`}
 										className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
