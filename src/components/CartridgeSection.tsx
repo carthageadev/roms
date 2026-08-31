@@ -51,12 +51,14 @@ export function CartridgeSection() {
 				<div className="glass-panel relative overflow-hidden rounded-3xl border border-white/5 p-8">
 					<div className="flex flex-col items-center gap-8 md:flex-row">
 						<div className="flex-1">
-							<div className="mx-auto aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-								<img
-									alt={`${game.title} cartridge label`}
-									className="h-full w-full object-cover"
-									src={label(game.art)}
-								/>
+							<div className="mx-auto w-full max-w-[260px] overflow-hidden rounded-2xl border border-white/10 bg-black/60 p-3 shadow-2xl">
+								<div className="overflow-hidden rounded-xl border border-white/5">
+									<img
+										alt={`${game.title} cartridge label`}
+										className="h-auto w-full"
+										src={label(game.art)}
+									/>
+								</div>
 							</div>
 						</div>
 
