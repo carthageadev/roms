@@ -33,8 +33,8 @@ export function CartridgeSection() {
 		setIsTransitioning(true);
 		setTimeout(() => {
 			setSelected((prev) => (prev + delta + CARTRIDGES.length) % CARTRIDGES.length);
-			setTimeout(() => setIsTransitioning(false), 30);
-		}, 150);
+			setTimeout(() => setIsTransitioning(false), 20);
+		}, 100);
 	};
 
 	return (
@@ -62,7 +62,7 @@ export function CartridgeSection() {
 								<div className="overflow-hidden rounded-2xl border border-white/5">
 									<img
 										alt={`${game.title} cartridge label`}
-										className={`h-auto w-full transition-all duration-150 ease-out ${
+									className={`h-auto w-full transition-all duration-100 ease-out ${
 											isTransitioning
 												? "scale-95 opacity-0 blur-sm"
 												: "scale-100 opacity-100 blur-0"
