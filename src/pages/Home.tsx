@@ -57,52 +57,51 @@ export function HomePage() {
 							</div>
 						</div>
 
-						<div className="relative aspect-square flex-1">
-							<div className="absolute inset-0 rounded-full bg-accent-gold/5 blur-[100px]" />
-							<div className="glass-panel relative h-full w-full overflow-hidden shadow-2xl">
+					<div className="relative flex-1">
+						<div className="absolute inset-0 rounded-full bg-accent-gold/5 blur-[100px]" />
+						<div className="glass-panel relative mx-auto aspect-[3/4] w-full max-w-[380px] overflow-hidden rounded-2xl border border-white/10 p-3 shadow-2xl">
+							<div className="h-full w-full overflow-hidden rounded-xl border border-white/5">
 								<img
 									alt="The Legend of Zelda Ocarina of Time cover art"
-									className="h-full w-full animate-float object-cover"
+									className="h-full w-full object-contain"
 									src={cover("ocarina-of-time")}
 								/>
-								<div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 							</div>
 						</div>
 					</div>
+				</div>
 
-					<div className="grid grid-cols-1 gap-12 md:grid-cols-3">
-						{[
-							{
-								title: "Metroid Prime",
-								label: "GameCube",
-								art: "metroid-prime",
-							},
-							{
-								title: "Metal Gear Solid 2",
-								label: "PlayStation 2",
-								art: "metal-gear-solid-2",
-							},
-							{ title: "Shenmue", label: "Dreamcast", art: "shenmue" },
-						].map((game) => (
-							<div className="group cursor-pointer" key={game.title}>
-								<div className="glass-panel mb-8 aspect-[16/10] overflow-hidden">
+				<div className="mt-20 grid grid-cols-1 gap-12 md:grid-cols-3">
+					{[
+						{ title: "Metroid Prime", label: "GameCube", art: "metroid-prime" },
+						{
+							title: "Metal Gear Solid 2",
+							label: "PlayStation 2",
+							art: "metal-gear-solid-2",
+						},
+						{ title: "Shenmue", label: "Dreamcast", art: "shenmue" },
+					].map((game) => (
+						<div className="group cursor-pointer" key={game.title}>
+							<div className="glass-panel mb-8 overflow-hidden rounded-2xl border border-white/10 p-2 transition-all group-hover:border-white/20 group-hover:shadow-lg">
+								<div className="aspect-[4/3] overflow-hidden rounded-xl border border-white/5">
 									<img
 										alt={`${game.title} cover art`}
-										className="h-full w-full object-cover transition-transform duration-[2s] group-hover:scale-110"
+										className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
 										src={cover(game.art)}
 									/>
 								</div>
-								<div className="flex items-center justify-between px-2">
-									<h3 className="font-bold font-display text-xl">
-										{game.title}
-									</h3>
-									<span className="font-bold text-[10px] text-text-secondary uppercase tracking-widest">
-										{game.label}
-									</span>
-								</div>
 							</div>
-						))}
-					</div>
+							<div className="flex items-center justify-between px-2">
+								<h3 className="font-bold font-display text-xl">
+									{game.title}
+								</h3>
+								<span className="font-bold text-[10px] text-text-secondary uppercase tracking-widest">
+									{game.label}
+								</span>
+							</div>
+						</div>
+					))}
+				</div>
 				</div>
 			</section>
 
