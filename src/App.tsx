@@ -154,9 +154,9 @@ export default function App() {
 	const active = query.trim().length > 0;
 	return (
 		<div className="atmosphere min-h-screen">
-			<header className={`z-20 transition-all duration-500 ${active ? "sticky top-0 border-b border-neutral-900 bg-[#0c0d0b]/90 py-4 backdrop-blur-md" : "relative pt-[22vh] sm:pt-[24vh]"}`}>
+			<header className={`z-20 transition-[padding,background-color] duration-150 ease-out ${active ? "sticky top-0 bg-[#0c0d0b]/90 py-4 backdrop-blur-md" : "relative pt-[22vh] sm:pt-[24vh]"}`}>
 				<div className="mx-auto max-w-3xl px-5 sm:px-8">
-					<div className={`grid transition-all duration-500 ${active ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"}`}>
+					<div className={`grid transition-[grid-template-rows,opacity] duration-150 ease-out ${active ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"}`}>
 						<div className="overflow-hidden">
 							<div className="flex flex-col items-center pb-14">
 								<BigLogo />
@@ -166,11 +166,11 @@ export default function App() {
 					</div>
 
 					<div className="flex items-center gap-7">
-						<div className={`overflow-hidden transition-all duration-500 ${active ? "w-[50px] opacity-100" : "w-0 opacity-0"}`}><MiniLogo onClick={clear} /></div>
+						<div className={`overflow-hidden transition-[width,opacity] duration-150 ease-out ${active ? "w-[50px] opacity-100" : "w-0 opacity-0"}`}><MiniLogo onClick={clear} /></div>
 						<SearchBar active={active} inputRef={inputRef} onChange={setQuery} onKeyDown={onInputKeyDown} value={query} />
 					</div>
 
-					<div className={`overflow-hidden text-[10px] text-neutral-700 transition-all duration-500 ${active ? "h-0 opacity-0" : "mt-4 h-5 opacity-100"}`}>
+					<div className={`overflow-hidden text-[10px] text-neutral-700 transition-[height,opacity] duration-150 ease-out ${active ? "h-0 opacity-0" : "mt-4 h-5 opacity-100"}`}>
 						<span>/ focus</span><span className="mx-3">p:n64</span><span>c:nintendo</span><span>enter to inspect</span>
 					</div>
 				</div>
