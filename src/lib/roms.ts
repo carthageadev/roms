@@ -24,12 +24,14 @@ export interface AtlasMeta {
 
 const REMOTE_DATA_URL = "https://carthageadev.github.io/atlas/data";
 const LOCAL_DATA_URL = "/data";
+const DATA_CACHE = "roms-tn-atlas-v1";
 
 let inFlight: Promise<RomIndex> | null = null;
 
 export interface RomIndex {
 	meta: AtlasMeta | null;
 	roms: RomEntry[];
+	source: "network" | "cache";
 }
 
 function dataBases(): string[] {
@@ -57,10 +59,38 @@ function formatBytes(bytes: number): string {
 	return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-async function fetchRoms(base: string, onProgress: (message: string) => void, signal?: AbortSignal): Promise<RomEntry[]> {
-	onProgress("fetching roms.json.gz");
-	const response = await fetch(`${base}/roms.json.gz`, { signal });
-	if (!response.ok) throw new Error(`${base}/roms.json.gz returned ${response.status}`);
+async function fetchRoms(base: string, version: string | undefined, onProgress: (message: string) => void, signal?: AbortSignal): Promise<{ roms: RomEntry[]; source: "network" | "cache" }> {
+	const url = `${base}/roms.json.gz`;
+	const cacheKey = `${url}?version=${encodeURIComponent(version ?? "unknown")}`;
+	let response: Response | null = null;
+	let source: "network" | "cache" = "network";
+
+	if (typeof caches !== "undefined") {
+		try {
+			const cache = await caches.open(DATA_CACHE);
+			response = (await cache.match(cacheKey)) ?? null;
+			if (response) {
+				source = "cache";
+				onProgress("loading cached roms.json.gz · no update fetch needed");
+			}
+		} catch {
+			response = null;
+		}
+	}
+
+	if (!response) {
+		onProgress("fetching new roms.json.gz");
+		response = await fetch(url, { signal });
+		if (!response.ok) throw new Error(`${url} returned ${response.status}`);
+		if (typeof caches !== "undefined") {
+			try {
+				const cache = await caches.open(DATA_CACHE);
+				await cache.put(cacheKey, response.clone());
+			} catch {
+				// Cache storage is optional; the network response still works.
+			}
+		}
+	}
 
 	const totalHeader = Number(response.headers.get("content-length") || 0);
 	const reader = response.body?.getReader();
@@ -75,7 +105,8 @@ async function fetchRoms(base: string, onProgress: (message: string) => void, si
 			received += value.byteLength;
 			if (received - lastReport >= 256 * 1024) {
 				const progress = totalHeader ? ` ${Math.round((received / totalHeader) * 100)}%` : "";
-				onProgress(`fetching roms.json.gz · ${formatBytes(received)}${totalHeader ? ` / ${formatBytes(totalHeader)}` : ""}${progress}`);
+				const prefix = source === "cache" ? "cached roms.json.gz" : "fetching roms.json.gz";
+				onProgress(`${prefix} · ${formatBytes(received)}${totalHeader ? ` / ${formatBytes(totalHeader)}` : ""}${progress}`);
 				lastReport = received;
 			}
 		}
@@ -84,13 +115,14 @@ async function fetchRoms(base: string, onProgress: (message: string) => void, si
 		chunks.push(new Uint8Array(buffer));
 		received = buffer.byteLength;
 	}
-	onProgress(`fetching roms.json.gz · ${formatBytes(received)}${totalHeader ? ` / ${formatBytes(totalHeader)} · 100%` : ""}`);
+	const prefix = source === "cache" ? "cached roms.json.gz" : "fetching roms.json.gz";
+	onProgress(`${prefix} · ${formatBytes(received)}${totalHeader ? ` / ${formatBytes(totalHeader)} · 100%` : ""}`);
 	onProgress("decompressing roms.json.gz");
 	const stream = new Blob(chunks as BlobPart[]).stream().pipeThrough(new DecompressionStream("gzip"));
 	onProgress("parsing roms.json");
 	const roms = (await new Response(stream).json()) as RomEntry[];
 	if (!Array.isArray(roms) || roms.length === 0) throw new Error("Atlas index is empty");
-	return roms;
+	return { roms, source };
 }
 
 export function loadRomIndex(onProgress: (message: string) => void = () => {}): Promise<RomIndex> {
@@ -105,8 +137,8 @@ export function loadRomIndex(onProgress: (message: string) => void = () => {}): 
 					errors.push(`${base}: published an empty index`);
 					continue;
 				}
-				const roms = await fetchRoms(base, onProgress);
-				return { meta, roms };
+				const result = await fetchRoms(base, meta?.generatedAt, onProgress);
+				return { meta, roms: result.roms, source: result.source };
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				errors.push(`${base}: ${message}`);

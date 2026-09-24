@@ -149,7 +149,7 @@ export function runCommand(input: string, context: ShellCtx): ShellResult {
 		case "man":
 			return {
 				lines: [
-					line(s("roms.tn", "bright"), s(" — shared read-only ROM index. commands:", "dim")),
+					line(s("roms.tn", "bright"), s(" — shared ROM index. commands:", "dim")),
 					blank,
 					...HELP.map(([key, value]) => line(s(`  ${pad(key, 16)}`, "amber"), s(value, "dim"))),
 					blank,
@@ -169,7 +169,7 @@ export function runCommand(input: string, context: ShellCtx): ShellResult {
 			if (node.kind === "root") {
 				const lines: Line[] = [line(s(`total ${systems.length + ROOT_FILES.length}`, "dim"))];
 				for (const system of systems) lines.push(directoryRow(system));
-				lines.push(blank, line(s("source: shared Atlas weekly build / read-only", "dim")));
+				lines.push(blank, line(s("source: http://92.35.124.13 · weekly Atlas build", "dim")));
 				return { lines };
 			}
 			const games = dirOf(roms, node.system.key);
@@ -227,7 +227,7 @@ export function runCommand(input: string, context: ShellCtx): ShellResult {
 							line(s("Use filters like p:n64, c:nintendo, or y:199x.", "fg")),
 							blank,
 							line(s(`${roms.length.toLocaleString()} records / ${systems.length} systems / ${fmtSize(totalBytes(roms))} indexed`, "dim")),
-							line(s("Source: https://carthageadev.github.io/atlas/data", "dim")),
+							line(s("Source: http://92.35.124.13", "dim")),
 						],
 					};
 				}
@@ -293,7 +293,7 @@ export function runCommand(input: string, context: ShellCtx): ShellResult {
 		case "whoami":
 			return { lines: [line(s("visitor", "fg"))] };
 		case "uname":
-			return { lines: [line(s("roms.tn / shared Atlas index / read-only", "fg"))] };
+			return { lines: [line(s("roms.tn / shared Atlas index / source: http://92.35.124.13", "fg"))] };
 		case "date":
 			return { lines: [line(s(new Date().toString(), "fg"))] };
 		case "echo":
@@ -302,9 +302,9 @@ export function runCommand(input: string, context: ShellCtx): ShellResult {
 		case "mv":
 		case "touch":
 		case "mkdir":
-			return { lines: [line(s(`${name}: /: Read-only file system`, "err"))] };
+			return { lines: [line(s(`${name}: filesystem commands are disabled in the index`, "err"))] };
 		case "sudo":
-			return { lines: [line(s("roms.tn is read-only. this incident has been logged.", "err"))] };
+			return { lines: [line(s("roms.tn is an index. this incident has been logged.", "err"))] };
 		case "exit":
 		case "quit":
 			return { lines: [line(s("there is no exit. try ", "dim"), s("clear", "amber"), s(".", "dim"))] };

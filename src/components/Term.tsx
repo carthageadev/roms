@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { buildSystems, completions, commonPrefix, fmtSize, pathForRom, type RomSystem } from "../lib/fs";
+import { buildSystems, completions, commonPrefix, fileName, fmtSize, pathForRom, type RomSystem } from "../lib/fs";
 import { loadRomIndex, type RomEntry, searchRoms, type RomHit } from "../lib/roms";
 import { COMMANDS, TAKES_PATH, blank, line, runCommand, s, type Line, type Seg, type Tone } from "../lib/shell";
 
@@ -58,7 +58,7 @@ function highlight(title: string, marked: boolean[], base: Tone = "fg"): Seg[] {
 	return output;
 }
 
-function bootLines(status: string, roms: RomEntry[], systems: RomSystem[], error: string | null): Line[] {
+function bootLines(status: string, dataSource: string, roms: RomEntry[], systems: RomSystem[], error: string | null): Line[] {
 	const base: Line[] = [
 		...BANNER.map((value) => line(s(value, "amber"))),
 		blank,
@@ -73,9 +73,10 @@ function bootLines(status: string, roms: RomEntry[], systems: RomSystem[], error
 	return [
 		...base,
 		line(s("STATUS: INDEX READY · SHARED ATLAS DATA", "bright")),
+		line(s(`DATA: ${dataSource}`, "dim")),
 		line(s(`${roms.length.toLocaleString()} records / ${systems.length} systems / ${fmtSize(roms.reduce((sum, rom) => sum + (rom.sizeBytes || 0), 0))} indexed`, "dim")),
-		line(s("source: carthageadev.github.io/atlas/data · weekly build · read-only", "dim")),
-		line(s("no scraper in this frontend · no ROM files hosted here", "dim")),
+		line(s("source: http://92.35.124.13 · weekly build · source links open externally", "dim")),
+		line(s("no scraper in this frontend · ROM files are not committed here", "dim")),
 		blank,
 		line(s("type ", "dim"), s("help", "amber"), s(" · ", "dim"), s("ls", "amber"), s(" · or start typing a game name", "dim")),
 		blank,
@@ -88,6 +89,7 @@ export function Term() {
 	const [roms, setRoms] = useState<RomEntry[]>([]);
 	const [systems, setSystems] = useState<RomSystem[]>([]);
 	const [status, setStatus] = useState("connecting to shared Atlas index");
+	const [dataSource, setDataSource] = useState("waiting for index");
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [cwd, setCwd] = useState("/");
 	const [input, setInput] = useState(() => {
@@ -119,6 +121,7 @@ export function Term() {
 				if (cancelled) return;
 				setRoms(index.roms);
 				setSystems(buildSystems(index.roms));
+				setDataSource(index.source === "cache" ? "cached data loaded · no new index update" : "new data fetched from shared Atlas");
 				setStatus("index ready · shared Atlas data");
 			})
 			.catch((error: unknown) => {
@@ -129,7 +132,7 @@ export function Term() {
 		};
 	}, []);
 
-	const lines = useMemo(() => bootLines(status, roms, systems, loadError), [loadError, roms, status, systems]);
+	const lines = useMemo(() => bootLines(status, dataSource, roms, systems, loadError), [dataSource, loadError, roms, status, systems]);
 	useEffect(() => {
 		if (booted >= lines.length) return;
 		const timer = window.setTimeout(() => setBooted((value) => value + 1), booted === 0 ? 60 : 45);
@@ -155,7 +158,7 @@ export function Term() {
 			if (liveQuery) url.searchParams.set("q", liveQuery);
 			else url.searchParams.delete("q");
 			window.history.replaceState(null, "", url.toString());
-			document.title = liveQuery ? `${liveQuery} — ROMS TN` : "ROMS TN — read-only index";
+			document.title = liveQuery ? `${liveQuery} — ROMS TN` : "ROMS TN — game index";
 		}, 200);
 		return () => window.clearTimeout(timer);
 	}, [liveQuery]);
@@ -202,6 +205,16 @@ export function Term() {
 
 	const openRom = useCallback((rom: RomEntry, echo: string) => {
 		exec(`cat ${pathForRom(rom)}`, echo);
+		window.open(rom.url, "_blank", "noopener,noreferrer");
+		const download = document.createElement("a");
+		download.href = rom.url;
+		download.download = fileName(rom);
+		download.target = "_blank";
+		download.rel = "noopener noreferrer";
+		download.style.display = "none";
+		document.body.appendChild(download);
+		download.click();
+		download.remove();
 	}, [exec]);
 
 	const syncCaret = () => {
@@ -347,7 +360,7 @@ export function Term() {
 	const before = input.slice(0, caret);
 	const atCaret = input.slice(caret, caret + 1);
 	const after = input.slice(caret + 1);
-	const statusText = !roms.length ? `STATUS: ${status}` : browse ? `${browse.length} records · browse` : liveQuery ? `${liveHits.length} hit${liveHits.length === 1 ? "" : "s"}` : "index ready · shared Atlas data";
+	const statusText = !roms.length ? `STATUS: ${status}` : browse ? `${browse.length} records · browse` : liveQuery ? `${liveHits.length} hit${liveHits.length === 1 ? "" : "s"}` : `DATA: ${dataSource}`;
 
 	return (
 		<div className="min-h-screen px-3 pb-16 pt-3 sm:px-5" onMouseUp={focus}>
@@ -403,11 +416,11 @@ export function Term() {
 				spellCheck={false}
 				value={input}
 			/>
-			<div className="fixed inset-x-0 bottom-0 bg-amber text-black">
+			<div className="fixed inset-x-0 bottom-0 border-t border-neutral-800 bg-[#202020] text-neutral-500">
 				<div className="pre flex justify-between px-2 py-0.5 text-[11px] sm:text-[12px]">
-					<span className="truncate">roms tn:{cwd} · {statusText} · shared Atlas / read-only</span>
-					<span className="hidden shrink-0 pl-4 sm:inline">tab complete · ↑↓ select · enter open · ctrl-l clear · help</span>
-					<span className="shrink-0 pl-2 sm:hidden">help</span>
+					<span className="truncate text-neutral-500">roms tn:{cwd} · {statusText} · source: http://92.35.124.13</span>
+					<span className="hidden shrink-0 pl-4 text-neutral-600 sm:inline">tab complete · ↑↓ select · enter open · ctrl-l clear · help</span>
+					<span className="shrink-0 pl-2 text-neutral-600 sm:hidden">help</span>
 				</div>
 			</div>
 		</div>
