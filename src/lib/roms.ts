@@ -52,13 +52,42 @@ async function fetchMeta(base: string, signal?: AbortSignal): Promise<AtlasMeta 
 	}
 }
 
+function formatBytes(bytes: number): string {
+	if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+	return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
 async function fetchRoms(base: string, onProgress: (message: string) => void, signal?: AbortSignal): Promise<RomEntry[]> {
 	onProgress("fetching roms.json.gz");
 	const response = await fetch(`${base}/roms.json.gz`, { signal });
 	if (!response.ok) throw new Error(`${base}/roms.json.gz returned ${response.status}`);
-	onProgress("decompressing index");
-	const stream = response.body?.pipeThrough(new DecompressionStream("gzip"));
-	if (!stream) throw new Error("This browser cannot decompress the Atlas index");
+
+	const totalHeader = Number(response.headers.get("content-length") || 0);
+	const reader = response.body?.getReader();
+	const chunks: Uint8Array[] = [];
+	let received = 0;
+	let lastReport = 0;
+	if (reader) {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			chunks.push(value);
+			received += value.byteLength;
+			if (received - lastReport >= 256 * 1024) {
+				const progress = totalHeader ? ` ${Math.round((received / totalHeader) * 100)}%` : "";
+				onProgress(`fetching roms.json.gz · ${formatBytes(received)}${totalHeader ? ` / ${formatBytes(totalHeader)}` : ""}${progress}`);
+				lastReport = received;
+			}
+		}
+	} else {
+		const buffer = await response.arrayBuffer();
+		chunks.push(new Uint8Array(buffer));
+		received = buffer.byteLength;
+	}
+	onProgress(`fetching roms.json.gz · ${formatBytes(received)}${totalHeader ? ` / ${formatBytes(totalHeader)} · 100%` : ""}`);
+	onProgress("decompressing roms.json.gz");
+	const stream = new Blob(chunks as BlobPart[]).stream().pipeThrough(new DecompressionStream("gzip"));
+	onProgress("parsing roms.json");
 	const roms = (await new Response(stream).json()) as RomEntry[];
 	if (!Array.isArray(roms) || roms.length === 0) throw new Error("Atlas index is empty");
 	return roms;
@@ -70,6 +99,7 @@ export function loadRomIndex(onProgress: (message: string) => void = () => {}): 
 		const errors: string[] = [];
 		for (const base of dataBases()) {
 			try {
+				onProgress(`checking shared index metadata · ${base}`);
 				const meta = await fetchMeta(base);
 				if (meta?.totalFiles === 0) {
 					errors.push(`${base}: published an empty index`);
@@ -78,7 +108,9 @@ export function loadRomIndex(onProgress: (message: string) => void = () => {}): 
 				const roms = await fetchRoms(base, onProgress);
 				return { meta, roms };
 			} catch (error) {
-				errors.push(`${base}: ${error instanceof Error ? error.message : String(error)}`);
+				const message = error instanceof Error ? error.message : String(error);
+				errors.push(`${base}: ${message}`);
+				onProgress(`source unavailable · trying next index · ${message}`);
 			}
 		}
 		throw new Error(`Unable to load the shared Atlas index. ${errors.join(" ")}`);

@@ -23,8 +23,7 @@ export default function App() {
 	const [query, setQuery] = useState(initialQuery);
 	const [deferredQuery, setDeferredQuery] = useState(initialQuery);
 	const [roms, setRoms] = useState<RomEntry[]>([]);
-	const [indexMeta, setIndexMeta] = useState<{ generatedAt: string; baseUrl: string; totalFiles: number } | null>(null);
-	const [status, setStatus] = useState("loading shared atlas index");
+	const [status, setStatus] = useState("connecting to shared Atlas index");
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [selected, setSelected] = useState(0);
 	const [open, setOpen] = useState<RomEntry | null>(null);
@@ -40,8 +39,7 @@ export default function App() {
 			.then((index) => {
 				if (cancelled) return;
 				setRoms(index.roms);
-				setIndexMeta(index.meta);
-				setStatus(`${index.roms.length.toLocaleString()} records ready`);
+				setStatus("index ready · shared Atlas data");
 			})
 			.catch((error: unknown) => {
 				if (!cancelled) setLoadError(error instanceof Error ? error.message : String(error));
@@ -150,7 +148,6 @@ export default function App() {
 							<div className="flex flex-col items-center pb-14">
 								<BigLogo />
 								<p className="mt-8 text-[11px] tracking-[0.12em] text-neutral-600">a shared game index</p>
-								{indexMeta ? <p className="mt-2 text-[10px] tracking-[0.1em] text-neutral-700">{indexMeta.totalFiles.toLocaleString()} records / {new Date(indexMeta.generatedAt).toLocaleDateString()}</p> : null}
 							</div>
 						</div>
 					</div>
@@ -198,9 +195,17 @@ export default function App() {
 				</main>
 			)}
 
-			{!active && !loadError && (
-				<footer className="fixed inset-x-0 bottom-8 px-5 text-center text-[9px] uppercase tracking-[0.16em] text-neutral-800">
-					{status} / data hosted by Atlas / no files hosted here
+			{!loadError && (
+				<footer aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-5 z-10 px-5 text-center text-[9px] uppercase tracking-[0.16em] text-neutral-800">
+					<p className="mx-auto max-w-4xl break-words">
+						<span className="text-neutral-600">{status}</span>
+						<span className="mx-2 text-neutral-800">·</span>
+						source: shared Atlas index
+						<span className="mx-2 text-neutral-800">·</span>
+						weekly build
+						<span className="mx-2 text-neutral-800">·</span>
+						read-only / no files hosted here
+					</p>
 				</footer>
 			)}
 
