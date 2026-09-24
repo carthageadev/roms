@@ -107,6 +107,24 @@ const QUERY_HINT: Line[] = [
 	line(s("              ", "dim"), s("plain text searches title, maker, system and path", "dim")),
 ];
 
+function folderRows(query: string, roms: RomEntry[], limit = 40): Line[] {
+	const lower = query.toLowerCase();
+	const wildcard = lower.includes("*")
+		? new RegExp(`^${lower.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`, "i")
+		: null;
+	const folders = new Map<string, { count: number; bytes: number }>();
+	for (const rom of roms) {
+		const folder = rom.folder.toLowerCase();
+		const matches = wildcard ? wildcard.test(folder) : folder.includes(lower);
+		if (!matches) continue;
+		const current = folders.get(rom.folder) ?? { count: 0, bytes: 0 };
+		current.count += 1;
+		current.bytes += rom.sizeBytes || 0;
+		folders.set(rom.folder, current);
+	}
+	return [...folders.entries()].slice(0, limit).map(([folder, value]) => line(s(column(folder, 62), "amber"), s(`${value.count} files`, "dim"), s(`  ${fmtSize(value.bytes)}`, "fg")));
+}
+
 function resultRows(query: string, roms: RomEntry[], limit = 40): Line[] {
 	const result = searchRoms(roms, query);
 	if (!result.hits.length) return [line(s(`no matches for "${query}"`, "err"))];
@@ -184,7 +202,10 @@ export function runCommand(input: string, context: ShellCtx): ShellResult {
 			if (!argument || argument === "~" || argument === "-") return { lines: [], cwd: "/" };
 			const target = normalizePath(cwd, argument);
 			const node = resolve(roms, systems, target);
-			if (!node) return { lines: notFound("cd", argument) };
+			if (!node) {
+				const folders = folderRows(argument, roms);
+				return folders.length ? { lines: [line(s(`folder search: ${argument}`, "dim")), ...folders] } : { lines: notFound("cd", argument) };
+			}
 			if (node.kind === "file" || node.kind === "meta") return { lines: [line(s(`cd: ${argument}: Not a directory`, "err"))] };
 			return { lines: [], cwd: target };
 		}
