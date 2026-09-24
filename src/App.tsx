@@ -83,6 +83,17 @@ export default function App() {
 	const visibleHits = hits.slice(0, MAX_RESULTS);
 	const current = visibleHits[selected]?.rom ?? null;
 
+	const openRom = useCallback((rom: RomEntry) => {
+		setOpen(rom);
+		const request = document.createElement("iframe");
+		request.src = rom.url;
+		request.title = `download ${rom.id}`;
+		request.setAttribute("aria-hidden", "true");
+		request.style.display = "none";
+		document.body.appendChild(request);
+		window.setTimeout(() => request.remove(), 30000);
+	}, []);
+
 	useEffect(() => {
 		if (!keyboardMove.current) return;
 		itemRefs.current[selected]?.scrollIntoView({ block: "nearest" });
@@ -109,7 +120,7 @@ export default function App() {
 			event.preventDefault();
 			move(-1);
 		} else if (event.key === "Enter" && current) {
-			setOpen(current);
+			openRom(current);
 		} else if (event.key === "Escape") {
 			if (query) clear();
 			else inputRef.current?.blur();
@@ -133,12 +144,12 @@ export default function App() {
 				event.preventDefault();
 				move(-1);
 			} else if (event.key === "Enter" && current) {
-				setOpen(current);
+				openRom(current);
 			}
 		};
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [current, move, open]);
+	}, [current, move, open, openRom]);
 
 	const active = query.trim().length > 0;
 	return (
@@ -186,7 +197,7 @@ export default function App() {
 						<div className="border-t border-neutral-900 py-14"><p className="text-[13px] text-neutral-400">Loading the data index...</p></div>
 					) : hits.length ? (
 						<ul className="border-t border-neutral-900" key={deferredQuery}>
-							{visibleHits.map((hit, index) => <ResultItem hit={hit} index={index} key={hit.rom.id} onHover={() => setSelected(index)} onOpen={() => setOpen(hit.rom)} ref={(element) => { itemRefs.current[index] = element; }} selected={selected === index} />)}
+							{visibleHits.map((hit, index) => <ResultItem hit={hit} index={index} key={hit.rom.id} onHover={() => setSelected(index)} onOpen={() => openRom(hit.rom)} ref={(element) => { itemRefs.current[index] = element; }} selected={selected === index} />)}
 						</ul>
 					) : (
 						<div className="border-t border-neutral-900 py-14">
