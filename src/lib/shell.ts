@@ -82,7 +82,7 @@ function recordLines(rom: RomEntry): Line[] {
 		line(s("index header:", "dim")),
 		...hexdump(rom, 3).map((value) => line(s(value, "dim"))),
 		blank,
-		line(s("* shared Atlas record. no ROM files are stored or served here.", "dim")),
+		line(s("* shared index record. no ROM files are stored or served here.", "dim")),
 	];
 }
 
@@ -187,7 +187,7 @@ export function runCommand(input: string, context: ShellCtx): ShellResult {
 			if (node.kind === "root") {
 				const lines: Line[] = [line(s(`total ${systems.length + ROOT_FILES.length}`, "dim"))];
 				for (const system of systems) lines.push(directoryRow(system));
-				lines.push(blank, line(s("source: http://92.35.124.13 · weekly Atlas build", "dim")));
+				lines.push(blank, line(s("source: http://92.35.124.13 · weekly data build", "dim")));
 				return { lines };
 			}
 			const games = dirOf(roms, node.system.key);
@@ -243,7 +243,7 @@ export function runCommand(input: string, context: ShellCtx): ShellResult {
 						lines: [
 							line(s("ROMS.TN — shared ROM index", "bright")),
 							blank,
-							line(s("This terminal reads the weekly Atlas build.", "fg")),
+							line(s("This terminal reads the weekly data build.", "fg")),
 							line(s("The frontend does not scrape, host, or serve ROM files.", "fg")),
 							line(s("Use filters like p:n64, c:nintendo, or y:199x.", "fg")),
 							blank,
@@ -267,7 +267,7 @@ export function runCommand(input: string, context: ShellCtx): ShellResult {
 					line(s("  Size: ", "dim"), s(pad(fmtBytes(rom.sizeBytes || 0), 14), "fg"), s("Blocks: ", "dim"), s(pad(String(Math.ceil((rom.sizeBytes || 0) / 512)), 10), "fg"), s("regular index record", "dim")),
 					line(s("Access: ", "dim"), s("(0444/-r--r--r--)  ", "fg"), s("Uid: (1000/roms)  Gid: (1000/index)", "dim")),
 					line(s("Modify: ", "dim"), s(mtime(rom), "fg")),
-					line(s(" Source: ", "dim"), s("shared Atlas weekly build", "fg")),
+					line(s(" Source: ", "dim"), s("shared weekly data build", "fg")),
 				],
 			};
 		}
@@ -314,7 +314,7 @@ export function runCommand(input: string, context: ShellCtx): ShellResult {
 		case "whoami":
 			return { lines: [line(s("visitor", "fg"))] };
 		case "uname":
-			return { lines: [line(s("roms.tn / shared Atlas index / source: http://92.35.124.13", "fg"))] };
+			return { lines: [line(s("roms.tn / shared data index / source: http://92.35.124.13", "fg"))] };
 		case "date":
 			return { lines: [line(s(new Date().toString(), "fg"))] };
 		case "echo":

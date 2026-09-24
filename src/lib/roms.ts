@@ -121,7 +121,7 @@ async function fetchRoms(base: string, version: string | undefined, onProgress: 
 	const stream = new Blob(chunks as BlobPart[]).stream().pipeThrough(new DecompressionStream("gzip"));
 	onProgress("parsing roms.json");
 	const roms = (await new Response(stream).json()) as RomEntry[];
-	if (!Array.isArray(roms) || roms.length === 0) throw new Error("Atlas index is empty");
+	if (!Array.isArray(roms) || roms.length === 0) throw new Error("data index is empty");
 	return { roms, source };
 }
 
@@ -131,7 +131,7 @@ export function loadRomIndex(onProgress: (message: string) => void = () => {}): 
 		const errors: string[] = [];
 		for (const base of dataBases()) {
 			try {
-				onProgress(`checking shared index metadata · ${base}`);
+				onProgress("checking data index metadata");
 				const meta = await fetchMeta(base);
 				if (meta?.totalFiles === 0) {
 					errors.push(`${base}: published an empty index`);
@@ -142,10 +142,10 @@ export function loadRomIndex(onProgress: (message: string) => void = () => {}): 
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				errors.push(`${base}: ${message}`);
-				onProgress(`source unavailable · trying next index · ${message}`);
+				onProgress("data source unavailable · trying next source");
 			}
 		}
-		throw new Error(`Unable to load the shared Atlas index. ${errors.join(" ")}`);
+		throw new Error(`Unable to load the data index. ${errors.join(" ")}`);
 	})().catch((error) => {
 		inFlight = null;
 		throw error;
