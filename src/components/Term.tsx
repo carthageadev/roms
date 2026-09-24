@@ -40,6 +40,7 @@ const BANNER = [
 
 const pad = (value: string | number, length: number) => String(value).padEnd(length);
 const fit = (value: string, length: number) => (value.length > length ? `${value.slice(0, length - 1)}~` : value.padEnd(length));
+const MAX_BROWSE = 200;
 
 function highlight(title: string, marked: boolean[], base: Tone = "fg"): Seg[] {
 	const output: Seg[] = [];
@@ -92,13 +93,16 @@ export function Term() {
 	});
 	const [caret, setCaret] = useState(input.length);
 	const [sel, setSel] = useState(-1);
+	const [browse, setBrowse] = useState<RomHit[] | null>(null);
 	const [histIndex, setHistIndex] = useState(-1);
 	const [focused, setFocused] = useState(true);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const endRef = useRef<HTMLDivElement>(null);
+	const browseItemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 	const historyRef = useRef<string[]>([]);
 	const nextId = useRef(1);
 	const draft = useRef("");
+	const keyboardMove = useRef(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -135,8 +139,9 @@ export function Term() {
 	const shown = liveHits.slice(0, 8);
 
 	useEffect(() => {
-		setSel((value) => (value >= shown.length ? shown.length - 1 : value));
-	}, [shown.length]);
+		const length = browse?.length ?? shown.length;
+		setSel((value) => (value >= length ? length - 1 : value));
+	}, [browse, shown.length]);
 
 	useEffect(() => {
 		const timer = window.setTimeout(() => {
@@ -152,6 +157,12 @@ export function Term() {
 	useLayoutEffect(() => {
 		endRef.current?.scrollIntoView({ block: "end" });
 	}, [blocks, booted, shown.length]);
+
+	useLayoutEffect(() => {
+		if (!keyboardMove.current) return;
+		if (browse) browseItemRefs.current[sel]?.scrollIntoView({ block: "nearest" });
+		keyboardMove.current = false;
+	}, [browse, sel]);
 
 	const focus = useCallback(() => {
 		const selection = window.getSelection();
@@ -176,6 +187,7 @@ export function Term() {
 			if (result.cwd) setCwd(result.cwd);
 			setInput("");
 			setCaret(0);
+			setBrowse(null);
 			setSel(-1);
 			setHistIndex(-1);
 		},
@@ -208,11 +220,39 @@ export function Term() {
 		if (event.ctrlKey && (key === "u" || key === "U")) {
 			event.preventDefault();
 			setInput("");
+			setBrowse(null);
 			setSel(-1);
 			return;
 		}
+		if (browse) {
+			if (key === "ArrowDown") {
+				event.preventDefault();
+				keyboardMove.current = true;
+				setSel((value) => (value + 1 >= browse.length ? 0 : value + 1));
+				return;
+			}
+			if (key === "ArrowUp") {
+				event.preventDefault();
+				keyboardMove.current = true;
+				setSel((value) => (value - 1 < 0 ? browse.length - 1 : value - 1));
+				return;
+			}
+			if (key === "Enter" && browse[sel]) {
+				event.preventDefault();
+				openRom(browse[sel].rom, input);
+				return;
+			}
+			if (key === "Escape") {
+				event.preventDefault();
+				setInput("");
+				setBrowse(null);
+				setSel(-1);
+				return;
+			}
+		}
 		if (key === "ArrowDown") {
 			event.preventDefault();
+			keyboardMove.current = true;
 			if (shown.length) setSel((value) => (value + 1 >= shown.length ? -1 : value + 1));
 			else if (histIndex >= 0) {
 				const next = histIndex - 1;
@@ -223,6 +263,7 @@ export function Term() {
 		}
 		if (key === "ArrowUp") {
 			event.preventDefault();
+			keyboardMove.current = true;
 			if (shown.length) setSel((value) => (value - 1 < -1 ? shown.length - 1 : value - 1));
 			else {
 				const next = Math.min(histIndex + 1, historyRef.current.length - 1);
@@ -273,7 +314,10 @@ export function Term() {
 		if (key === "Enter") {
 			event.preventDefault();
 			if (sel >= 0 && shown[sel]) openRom(shown[sel].rom, input);
-			else exec(input);
+			else if (liveHits.length) {
+				setBrowse(liveHits.slice(0, MAX_BROWSE));
+				setSel(0);
+			} else exec(input);
 			return;
 		}
 		if (key === "Escape") {
@@ -283,11 +327,21 @@ export function Term() {
 		}
 	};
 
+	const resultSegments = (hit: RomHit, index: number): Line => {
+		const rom = hit.rom;
+		return [
+			s(` ${pad(index + 1 + ".", 4)}`, "dim"),
+			...highlight(fit(rom.title, 44), hit.hl, index === sel ? "fg" : "bright"),
+			s(` ${rom.date?.slice(-4) ?? "----"} `, "dim"),
+			s(` /${pathForRom(rom).slice(1)}`, "amber"),
+		];
+	};
+
 	const prompt = (at: string) => [s("roms.tn", "amber"), s(":", "dim"), s(at, "bright"), s("$ ", "dim")];
 	const before = input.slice(0, caret);
 	const atCaret = input.slice(caret, caret + 1);
 	const after = input.slice(caret + 1);
-	const statusText = !roms.length ? status : liveQuery ? `${liveHits.length} hit${liveHits.length === 1 ? "" : "s"}` : `${roms.length.toLocaleString()} records`;
+	const statusText = !roms.length ? status : browse ? `${browse.length} records · browse` : liveQuery ? `${liveHits.length} hit${liveHits.length === 1 ? "" : "s"}` : `${roms.length.toLocaleString()} records`;
 
 	return (
 		<div className="min-h-screen px-3 pb-16 pt-3 sm:px-5" onMouseUp={focus}>
@@ -307,22 +361,23 @@ export function Term() {
 						<span className={`${focused ? "caret" : "caret-idle"} ${focused ? "bg-fg text-black" : "bg-transparent text-white outline outline-1 outline-dark"}`}>{atCaret || " "}</span>
 						<span className="text-white">{after}</span>
 					</div>
-					{live && (
+					{browse ? (
 						<div className="mt-1">
-							{shown.map((hit: RomHit, index) => {
-								const rom = hit.rom;
-								const segments = [
-									s(` ${pad(index + 1 + ".", 4)}`, "dim"),
-									...highlight(fit(rom.title, 44), hit.hl, index === sel ? "fg" : "bright"),
-									s(` ${rom.date?.slice(-4) ?? "----"} `, "dim"),
-									s(` /${pathForRom(rom).slice(1)}`, "amber"),
-								];
-								return <Row inverse={index === sel} key={rom.id} segs={segments} />;
-							})}
+							<Row segs={line(s(` browse: ${browse.length} record${browse.length === 1 ? "" : "s"}`, "amber"), s(` · enter or click to open · ↑↓ to move`, "dim"))} />
+							{browse.map((hit: RomHit, index) => (
+								<button className="block w-full cursor-pointer text-left" key={hit.rom.id} onClick={() => openRom(hit.rom, input)} onMouseEnter={() => setSel(index)} ref={(element) => { browseItemRefs.current[index] = element; }} type="button">
+									<Row inverse={index === sel} segs={resultSegments(hit, index)} />
+								</button>
+							))}
+							{liveHits.length > browse.length && <Row segs={line(s(` showing first ${browse.length} of ${liveHits.length} matches · refine the query to narrow it`, "dim"))} />}
+						</div>
+					) : live ? (
+						<div className="mt-1">
+							{shown.map((hit: RomHit, index) => <Row inverse={index === sel} key={hit.rom.id} segs={resultSegments(hit, index)} />)}
 							{liveHits.length === 0 && <Row segs={line(s(` no match for "${liveQuery}"`, "err"))} />}
 							{liveHits.length > 0 && <Row segs={line(s(` ${liveHits.length} match${liveHits.length === 1 ? "" : "es"}`, "dim"), s(liveHits.length > shown.length ? ` (${shown.length} shown, enter to list all)` : "", "dim"), s(`  ${live.ms.toFixed(2)}ms`, "dim"))} />}
 						</div>
-					)}
+					) : null}
 				</>
 			)}
 			<div className="h-4" ref={endRef} />
@@ -333,7 +388,7 @@ export function Term() {
 				autoCorrect="off"
 				className="fixed -left-[9999px] top-0 h-px w-px opacity-0"
 				onBlur={() => setFocused(false)}
-				onChange={(event) => { setInput(event.target.value); setHistIndex(-1); requestAnimationFrame(syncCaret); }}
+				onChange={(event) => { setInput(event.target.value); setBrowse(null); setSel(-1); setHistIndex(-1); requestAnimationFrame(syncCaret); }}
 				onClick={syncCaret}
 				onFocus={() => setFocused(true)}
 				onKeyDown={onKeyDown}
