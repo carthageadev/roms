@@ -236,10 +236,27 @@ function dateYear(rom: RomEntry): number | null {
 	return match ? Number(match[0]) : null;
 }
 
+const PLATFORM_ALIASES: Record<string, string[]> = {
+	nes: ["nes", "famicom"],
+	n64: ["n64", "nintendo 64", "nintendo64"],
+	snes: ["snes", "super famicom"],
+	gcn: ["gcn", "gc", "ngc", "gamecube"],
+	gb: ["gb", "game boy"],
+	gbc: ["gbc", "game boy color"],
+	gba: ["gba", "game boy advance"],
+	nds: ["nds", "ds"],
+	sms: ["sms", "master system"],
+	md: ["md", "genesis", "mega drive"],
+	pce: ["pce", "pc engine", "turbografx"],
+	ps1: ["ps1", "psx", "playstation"],
+	ps2: ["ps2", "playstation 2"],
+};
+
 function matchesPlatform(rom: RomEntry, platform: string): boolean {
 	const consoleName = normalize(rom.console);
 	const company = normalize(rom.company);
-	return consoleName === platform || consoleName.includes(platform) || company === platform;
+	const aliases = PLATFORM_ALIASES[platform] ?? [platform];
+	return aliases.some((alias) => consoleName === alias || consoleName.includes(alias) || company === alias);
 }
 
 function markTitle(title: string, term: string, highlight: boolean[]): void {

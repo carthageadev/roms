@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+	--color-amber: #ffb000;
+	--color-amber-dim: #7a5400;
+	--color-fg: #c6c6c6;
+	--color-dim: #6e6e6e;
+	--color-dark: #3a3a3a;
+	--color-err: #ff5f5f;
+}
+
+html {
+	background: #000;
+}
+
+body {
+	margin: 0;
+	background: #000;
+	color: #c6c6c6;
+	font-family: ui-monospace, "SFMono-Regular", "Menlo", "DejaVu Sans Mono", "Liberation Mono", "Consolas", monospace;
+	font-size: 13px;
+	line-height: 1.45;
+	-webkit-font-smoothing: none;
+	-moz-osx-font-smoothing: unset;
+	font-synthesis: none;
+	font-variant-ligatures: none;
+	font-kerning: none;
+	text-rendering: optimizeSpeed;
+	font-feature-settings: "calt" 0, "liga" 0;
+	overflow-y: scroll;
+}
+
+@media (min-width: 640px) {
+	body {
+		font-size: 14px;
+	}
+}
+
+input {
+	font: inherit;
+	color: inherit;
+	letter-spacing: inherit;
+}
+
+::selection {
+	background: #ffb000;
+	color: #000;
+}
+
+.pre {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	tab-size: 8;
+}
+
+.nowrap {
+	white-space: pre;
+}
+
+@keyframes caret {
+	0%,
+	50% {
+		opacity: 1;
+	}
+	50.01%,
+	100% {
+		opacity: 0;
+	}
+}
+
+.caret {
+	animation: caret 1s steps(1, start) infinite;
+}
+
+.caret-idle {
+	animation: none;
+	opacity: 1;
+}
+
+a,
+button {
+	font: inherit;
+	color: inherit;
+}
+
+*::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+	background: #000;
+}
+
+*::-webkit-scrollbar-thumb {
+	background: #2b2b2b;
+	border: 2px solid #000;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background: #3f3f3f;
+}
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: #2b2b2b #000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.caret {
+		animation: none;
+	}
+}
