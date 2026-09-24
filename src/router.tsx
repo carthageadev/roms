@@ -8,6 +8,7 @@ import {
 import { AboutPage } from "./pages/About";
 import { HomePage } from "./pages/Home";
 import { LegalPage } from "./pages/Legal";
+import { LibraryPage } from "./pages/Library";
 import { NotFoundPage } from "./pages/NotFound";
 
 const rootRoute = createRootRoute({
@@ -33,7 +34,18 @@ const legalRoute = createRoute({
 	component: LegalPage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, aboutRoute, legalRoute]);
+const libraryRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/library",
+	component: LibraryPage,
+});
+
+const routeTree = rootRoute.addChildren([
+	indexRoute,
+	aboutRoute,
+	legalRoute,
+	libraryRoute,
+]);
 
 export const router = createRouter({ routeTree });
 

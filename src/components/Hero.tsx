@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { gsap } from "gsap";
 import { useEffect, useRef } from "react";
 import { AwardBadge } from "./AwardBadge";
@@ -73,20 +74,20 @@ export function Hero() {
 						className="flex flex-col items-center justify-center gap-8 sm:flex-row"
 						ref={ctaRef}
 					>
-						<button
+						<Link
 							aria-label="Explore Library"
 							className="btn-luxe btn-primary min-w-[200px]"
-							type="button"
+							to="/library"
 						>
 							Explore Library
-						</button>
-						<button
+						</Link>
+						<Link
 							aria-label="How it works"
 							className="btn-luxe btn-outline min-w-[200px]"
-							type="button"
+							to="/about"
 						>
 							Learn the Craft
-						</button>
+						</Link>
 					</div>
 				</div>
 			</div>

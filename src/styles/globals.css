@@ -181,3 +181,81 @@ body {
 .reveal-text.active {
 	mask-position: top;
 }
+
+/* ─── Metallic cards (Library + Product of the Week) ─────────────── */
+.metallic-card {
+	position: relative;
+	border-radius: var(--radius-elegant);
+	background:
+		linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 40%, rgba(195, 160, 105, 0.06)),
+		var(--bg-card);
+	border: 1px solid transparent;
+	background-clip: padding-box;
+	transition: var(--transition-luxe);
+	overflow: hidden;
+}
+
+.metallic-card::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	padding: 1px;
+	background: linear-gradient(
+		135deg,
+		rgba(246, 226, 122, 0.55),
+		rgba(255, 255, 255, 0.14) 25%,
+		rgba(113, 113, 122, 0.35) 50%,
+		rgba(255, 255, 255, 0.14) 75%,
+		rgba(195, 160, 105, 0.55)
+	);
+	-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
+	pointer-events: none;
+}
+
+.metallic-card:hover {
+	transform: translateY(-4px);
+	box-shadow: var(--shadow-luxe), 0 0 40px rgba(246, 226, 122, 0.08);
+}
+
+.metallic-spotlight {
+	position: relative;
+	border-radius: 28px;
+	background:
+		radial-gradient(circle at 15% 20%, rgba(246, 226, 122, 0.12), transparent 45%),
+		radial-gradient(circle at 85% 80%, rgba(62, 99, 221, 0.12), transparent 45%),
+		linear-gradient(160deg, #141416, #0b0b0c 60%, #101012);
+	border: 1px solid rgba(246, 226, 122, 0.22);
+	box-shadow: var(--shadow-luxe);
+	overflow: hidden;
+}
+
+.metallic-spotlight .shine {
+	content: "";
+	position: absolute;
+	inset: -40%;
+	background: linear-gradient(
+		105deg,
+		transparent 40%,
+		rgba(255, 251, 230, 0.09) 48%,
+		rgba(255, 255, 255, 0.16) 50%,
+		rgba(255, 251, 230, 0.09) 52%,
+		transparent 60%
+	);
+	animation: shine-sweep 7s ease-in-out infinite;
+	pointer-events: none;
+}
+
+@keyframes shine-sweep {
+	0% {
+		transform: translateX(-25%) rotate(0.001deg);
+	}
+	55% {
+		transform: translateX(25%) rotate(0.001deg);
+	}
+	100% {
+		transform: translateX(-25%) rotate(0.001deg);
+	}
+}

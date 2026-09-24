@@ -33,7 +33,13 @@ export function Navbar() {
 				</Link>
 
 				<div className="hidden items-center gap-10 md:flex">
-					{["Library", "Emulators", "Community", "Journal"].map((item) => (
+					<Link
+						className="font-medium text-text-secondary text-xs uppercase tracking-[0.2em] transition-colors hover:text-white focus-visible:text-white"
+						to="/library"
+					>
+						Library
+					</Link>
+					{["Emulators", "Community", "Journal"].map((item) => (
 						<a
 							className="font-medium text-text-secondary text-xs uppercase tracking-[0.2em] transition-colors hover:text-white focus-visible:text-white"
 							href={`#${item.toLowerCase()}`}
@@ -51,12 +57,12 @@ export function Navbar() {
 					>
 						Login
 					</button>
-					<a
+					<Link
 						className="btn-luxe btn-primary !py-2.5 !px-6 !text-[10px] !tracking-[0.15em] !uppercase !font-black"
-						href="/join"
+						to="/library"
 					>
 						Get Started
-					</a>
+					</Link>
 				</div>
 			</div>
 		</nav>

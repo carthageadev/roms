@@ -24,6 +24,35 @@ export function HomePage() {
 
 			<CartridgeSection />
 
+			{/* Live Library promo - same Atlas index, search + Product of the Week */}
+			<section className="px-6 py-24">
+				<div className="metallic-spotlight mx-auto max-w-7xl p-10 md:p-14">
+					<div className="shine" aria-hidden="true" />
+					<div className="relative z-10 flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
+						<div>
+							<div className="mb-4 text-[10px] font-black uppercase tracking-[0.4em] text-accent-gold">
+								Live · 168k files · Atlas index
+							</div>
+							<h2 className="font-display text-4xl font-medium tracking-tight md:text-5xl">
+								Search the full Vault
+							</h2>
+							<p className="mt-4 max-w-xl text-text-secondary">
+								roms-tn now consumes the same data as Atlas - same scraper,
+								same weekly build. Full-text search, company / console /
+								folder filters, plus a metallic Product of the Week that
+								rotates every Monday.
+							</p>
+						</div>
+						<Link
+							className="btn-luxe btn-primary min-w-[220px]"
+							to="/library"
+						>
+							Open Library
+						</Link>
+					</div>
+				</div>
+			</section>
+
 			{/* Featured Section - Museum/Gallery Style */}
 			<section className="bg-surface/30 py-40">
 				<div className="mx-auto max-w-7xl px-6">
@@ -123,9 +152,9 @@ export function HomePage() {
 						</div>
 
 						<div className="flex flex-wrap items-center justify-center gap-10 font-bold text-[10px] text-text-dim uppercase tracking-[0.3em]">
-							<a className="transition-colors hover:text-white" href="#library">
+							<Link className="transition-colors hover:text-white" to="/library">
 								Library
-							</a>
+							</Link>
 							<Link className="transition-colors hover:text-white" to="/about">
 								About
 							</Link>
