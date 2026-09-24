@@ -16,7 +16,6 @@ export function BigLogo() {
 					</div>
 				))}
 			</pre>
-			<span className="blink absolute -right-3 bottom-0 text-sm text-acc">_</span>
 		</div>
 	);
 }
