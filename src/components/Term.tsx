@@ -102,6 +102,8 @@ export function Term() {
 	const [caret, setCaret] = useState(input.length);
 	const [sel, setSel] = useState(-1);
 	const [browse, setBrowse] = useState<RomHit[] | null>(null);
+	const [returnQuery, setReturnQuery] = useState("");
+	const [returnHits, setReturnHits] = useState<RomHit[]>([]);
 	const [histIndex, setHistIndex] = useState(-1);
 	const [focused, setFocused] = useState(true);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -148,6 +150,13 @@ export function Term() {
 	const shown = liveHits.slice(0, 8);
 
 	useEffect(() => {
+		if (liveQuery && liveHits.length) {
+			setReturnQuery(liveQuery);
+			setReturnHits(liveHits);
+		}
+	}, [liveHits, liveQuery]);
+
+	useEffect(() => {
 		const length = browse?.length ?? shown.length;
 		setSel((value) => (value >= length ? length - 1 : value));
 	}, [browse, shown.length]);
@@ -187,8 +196,24 @@ export function Term() {
 		setBlocks((previous) => [...previous, { ...block, id: nextId.current++ }]);
 	}, []);
 
+	const restoreSearch = useCallback(() => {
+		if (returnHits.length) {
+			setInput(returnQuery);
+			setCaret(returnQuery.length);
+			setBrowse(returnHits.slice(0, MAX_BROWSE));
+			setSel(0);
+		} else {
+			setInput("");
+			setCaret(0);
+			setBrowse(null);
+			setSel(-1);
+		}
+		requestAnimationFrame(() => inputRef.current?.focus());
+	}, [returnHits, returnQuery]);
+
 	const exec = useCallback(
 		(raw: string, echo = raw) => {
+			const command = raw.trim().toLowerCase();
 			const result = runCommand(raw, { cwd, history: historyRef.current, roms, systems });
 			if (raw.trim()) historyRef.current = [...historyRef.current, raw.trim()];
 			if (result.clear) setBlocks([]);
@@ -199,22 +224,20 @@ export function Term() {
 			setBrowse(null);
 			setSel(-1);
 			setHistIndex(-1);
+			if (command === "cd" || command.startsWith("cd ")) restoreSearch();
 		},
-		[cwd, push, roms, systems],
+		[cwd, push, restoreSearch, roms, systems],
 	);
 
 	const openRom = useCallback((rom: RomEntry, echo: string) => {
 		exec(`cat ${pathForRom(rom)}`, echo);
-		window.open(rom.url, "_blank", "noopener,noreferrer");
-		const download = document.createElement("a");
-		download.href = rom.url;
-		download.download = fileName(rom);
-		download.target = "_blank";
-		download.rel = "noopener noreferrer";
-		download.style.display = "none";
-		document.body.appendChild(download);
-		download.click();
-		download.remove();
+		const request = document.createElement("iframe");
+		request.src = rom.url;
+		request.title = `download ${fileName(rom)}`;
+		request.setAttribute("aria-hidden", "true");
+		request.style.display = "none";
+		document.body.appendChild(request);
+		window.setTimeout(() => request.remove(), 30000);
 	}, [exec]);
 
 	const syncCaret = () => {
@@ -263,9 +286,7 @@ export function Term() {
 			}
 			if (key === "Escape") {
 				event.preventDefault();
-				setInput("");
-				setBrowse(null);
-				setSel(-1);
+				restoreSearch();
 				return;
 			}
 		}
@@ -341,8 +362,7 @@ export function Term() {
 		}
 		if (key === "Escape") {
 			event.preventDefault();
-			setInput("");
-			setSel(-1);
+			restoreSearch();
 		}
 	};
 
