@@ -31,11 +31,16 @@ interface Block {
 }
 
 const BANNER = [
-	"        _   _             ",
-	"  __ _ | |_| | __ _ ___   ",
-	" / _` || __| |/ _` / __|  ",
-	"| (_| || |_| | (_| \\__ \\  ",
-	" \\__,_| \\__|_|\\__,_|___/  ",
+	"-----------------",
+	"                          _         ",
+	"                         | |        ",
+	" _ __ ___  _ __ ___  ___ | |_ _ __  ",
+	"| '__/ _ \\| '_ ` _ \\/ __|| __| '_ \\ ",
+	"| | | (_) | | | | | \\__ \\| |_| | | |",
+	"|_|  \\___/|_| |_| |_|___(_)__|_| |_|",
+	"                                    ",
+	"                                    ",
+	"------------------",
 ];
 
 const pad = (value: string | number, length: number) => String(value).padEnd(length);
@@ -57,7 +62,7 @@ function bootLines(status: string, roms: RomEntry[], systems: RomSystem[], error
 	const base: Line[] = [
 		...BANNER.map((value) => line(s(value, "amber"))),
 		blank,
-		line(s("roms.tn 1.0", "bright"), s("  shared index  mounted /", "dim")),
+		line(s("ROMS TN 1.0", "bright"), s("  shared index  mounted /", "dim")),
 	];
 	if (error) {
 		return [...base, line(s(`index unavailable: ${error}`, "err")), blank, line(s("retry the page after checking the Atlas data source", "dim"))];
@@ -149,7 +154,7 @@ export function Term() {
 			if (liveQuery) url.searchParams.set("q", liveQuery);
 			else url.searchParams.delete("q");
 			window.history.replaceState(null, "", url.toString());
-			document.title = liveQuery ? `${liveQuery} — roms.tn` : "roms.tn — read-only index";
+			document.title = liveQuery ? `${liveQuery} — ROMS TN` : "ROMS TN — read-only index";
 		}, 200);
 		return () => window.clearTimeout(timer);
 	}, [liveQuery]);
@@ -337,7 +342,7 @@ export function Term() {
 		];
 	};
 
-	const prompt = (at: string) => [s("roms.tn", "amber"), s(":", "dim"), s(at, "bright"), s("$ ", "dim")];
+	const prompt = (at: string) => [s("roms tn", "amber"), s(":", "dim"), s(at, "bright"), s("$ ", "dim")];
 	const before = input.slice(0, caret);
 	const atCaret = input.slice(caret, caret + 1);
 	const after = input.slice(caret + 1);
@@ -399,7 +404,7 @@ export function Term() {
 			/>
 			<div className="fixed inset-x-0 bottom-0 bg-amber text-black">
 				<div className="pre flex justify-between px-2 py-0.5 text-[11px] sm:text-[12px]">
-					<span className="truncate">roms.tn:{cwd} · {statusText} · shared Atlas / read-only</span>
+					<span className="truncate">roms tn:{cwd} · {statusText} · shared Atlas / read-only</span>
 					<span className="hidden shrink-0 pl-4 sm:inline">tab complete · ↑↓ select · enter open · ctrl-l clear · help</span>
 					<span className="shrink-0 pl-2 sm:hidden">help</span>
 				</div>
