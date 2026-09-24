@@ -252,7 +252,7 @@ export function parseQuery(query: string): ParsedQuery {
 		}
 	}
 
-	const text = normalize(textParts.join(" ")).replace(/[^a-z0-9$&\s]/g, " ").replace(/\s+/g, " ").trim();
+	const text = normalize(textParts.join(" ")).replace(/\s+/g, " ").trim();
 	return {
 		text,
 		terms: text ? text.split(" ").filter((term) => term !== "&") : [],
@@ -303,24 +303,64 @@ function markTitle(title: string, term: string, highlight: boolean[]): void {
 	}
 }
 
-function scoreRom(rom: RomEntry, parsed: ParsedQuery, metaHits: RomHit["metaHits"]): number {
+interface SpecialQuery {
+	patterns: RegExp[];
+	fragments: string[];
+	related: boolean;
+}
+
+function escapeRegex(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildSpecialQuery(text: string): SpecialQuery | null {
+	const hasWildcard = text.includes("*");
+	const hasRegex = /[|()[\]{}+?^$\\.]/.test(text);
+	if (!hasWildcard && !hasRegex) return null;
+	const alternatives = text.split("|").map((value) => value.trim()).filter(Boolean);
+	if (!alternatives.length) return null;
+	try {
+		if (hasRegex) {
+			return { patterns: alternatives.map((value) => new RegExp(value, "i")), fragments: alternatives, related: false };
+		}
+		const fragments = alternatives.flatMap((value) => value.split("*").map((part) => part.trim()).filter(Boolean));
+		const patterns = alternatives.map((value) => new RegExp(value.split("*").map(escapeRegex).join(".*"), "i"));
+		return { patterns, fragments, related: true };
+	} catch {
+		return null;
+	}
+}
+
+function scoreRom(rom: RomEntry, parsed: ParsedQuery, metaHits: RomHit["metaHits"], special: SpecialQuery | null): number {
 	let score = 0;
 	const title = normalize(rom.title);
 	const searchText = rom.searchText || `${title} ${normalize(rom.company)} ${normalize(rom.console)} ${normalize(rom.folder)}`;
 
-	for (const term of parsed.terms) {
-		if (!searchText.includes(term)) return -1;
-		if (title === term) score += 1000;
-		else if (title.startsWith(term)) score += 500;
-		else if (title.includes(term)) score += 250;
-		else if (normalize(rom.console).includes(term)) {
-			score += 80;
-			metaHits.add("console");
-		} else if (normalize(rom.company).includes(term)) {
-			score += 65;
-			metaHits.add("company");
-		} else {
-			score += 20;
+	if (special) {
+		const strict = special.patterns.some((pattern) => pattern.test(searchText));
+		const related = special.related && special.fragments.some((fragment) => searchText.includes(fragment));
+		if (!strict && !related) return -1;
+		score += strict ? 1000 : 80;
+		if (!strict) {
+			for (const fragment of special.fragments) {
+				if (title.includes(fragment)) score += 180;
+			}
+		}
+	} else {
+		for (const term of parsed.terms) {
+			if (!searchText.includes(term)) return -1;
+			if (title === term) score += 1000;
+			else if (title.startsWith(term)) score += 500;
+			else if (title.includes(term)) score += 250;
+			else if (normalize(rom.console).includes(term)) {
+				score += 80;
+				metaHits.add("console");
+			} else if (normalize(rom.company).includes(term)) {
+				score += 65;
+				metaHits.add("company");
+			} else {
+				score += 20;
+			}
 		}
 	}
 
@@ -347,13 +387,15 @@ function scoreRom(rom: RomEntry, parsed: ParsedQuery, metaHits: RomHit["metaHits
 export function searchRoms(roms: RomEntry[], query: string): RomSearchResult {
 	const started = performance.now();
 	const parsed = parseQuery(query);
+	const special = buildSpecialQuery(parsed.text);
 	const hits: RomHit[] = [];
 	for (const rom of roms) {
 		const metaHits: RomHit["metaHits"] = new Set();
-		const score = scoreRom(rom, parsed, metaHits);
+		const score = scoreRom(rom, parsed, metaHits, special);
 		if (score < 0) continue;
 		const hl = new Array<boolean>(rom.title.length).fill(false);
-		for (const term of parsed.terms) markTitle(rom.title, term, hl);
+		const highlightTerms = special?.fragments ?? parsed.terms;
+		for (const term of highlightTerms) markTitle(rom.title, term, hl);
 		hits.push({ rom, score, hl, metaHits });
 	}
 	hits.sort((a, b) => b.score - a.score || a.rom.title.localeCompare(b.rom.title));
