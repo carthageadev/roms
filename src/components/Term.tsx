@@ -65,20 +65,20 @@ function bootLines(status: string, dataSource: string, roms: RomEntry[], systems
 		line(s("ROMS TN 1.0", "bright")),
 	];
 	if (error) {
-		return [...base, line(s(`STATUS: INDEX ERROR · ${error}`, "err")), blank, line(s("retry after checking the data source", "dim"))];
+		return [...base, line(s(`STATUS: INDEX ERROR - ${error}`, "err")), blank, line(s("retry after checking the data source", "dim"))];
 	}
 	if (!roms.length) {
 		return [...base, line(s(`STATUS: ${status}`, "dim")), blank, line(s("the search prompt will unlock when the shared index is ready", "dim")), blank];
 	}
 	return [
 		...base,
-		line(s("STATUS: INDEX READY · DATA LOADED", "bright")),
+		line(s("STATUS: INDEX READY - DATA LOADED", "bright")),
 		line(s(`DATA: ${dataSource}`, "dim")),
 		line(s(`${roms.length.toLocaleString()} records / ${systems.length} systems / ${fmtSize(roms.reduce((sum, rom) => sum + (rom.sizeBytes || 0), 0))} indexed`, "dim")),
-		line(s("source: http://92.35.124.13 · weekly build · source links open externally", "dim")),
-		line(s("no scraper in this frontend · ROM files are not committed here", "dim")),
+		line(s("source: http://92.35.124.13 - weekly build - source links open externally", "dim")),
+		line(s("no scraper in this frontend - ROM files are not committed here", "dim")),
 		blank,
-		line(s("type ", "dim"), s("help", "amber"), s(" · ", "dim"), s("ls", "amber"), s(" · or start typing a game name", "dim")),
+		line(s("type ", "dim"), s("help", "amber"), s(" - ", "dim"), s("ls", "amber"), s(" - or start typing a game name", "dim")),
 		blank,
 	];
 }
@@ -123,8 +123,8 @@ export function Term() {
 				if (cancelled) return;
 				setRoms(index.roms);
 				setSystems(buildSystems(index.roms));
-				setDataSource(index.source === "cache" ? "cached data loaded · no new index update" : "new data fetched from source");
-				setStatus("index ready · data loaded");
+				setDataSource(index.source === "cache" ? "cached data loaded - no new index update" : "new data fetched from source");
+				setStatus("index ready - data loaded");
 			})
 			.catch((error: unknown) => {
 				if (!cancelled) setLoadError(error instanceof Error ? error.message : String(error));
@@ -380,7 +380,7 @@ export function Term() {
 	const before = input.slice(0, caret);
 	const atCaret = input.slice(caret, caret + 1);
 	const after = input.slice(caret + 1);
-	const statusText = !roms.length ? `STATUS: ${status}` : browse ? `${browse.length} records · browse` : liveQuery ? `${liveHits.length} hit${liveHits.length === 1 ? "" : "s"}` : `DATA: ${dataSource}`;
+	const statusText = !roms.length ? `STATUS: ${status}` : browse ? `${browse.length} records - browse` : liveQuery ? `${liveHits.length} hit${liveHits.length === 1 ? "" : "s"}` : `DATA: ${dataSource}`;
 
 	return (
 		<div className="min-h-screen px-3 pb-16 pt-3 sm:px-5" onMouseUp={focus}>
@@ -402,13 +402,13 @@ export function Term() {
 					</div>
 					{browse ? (
 						<div className="mt-1">
-							<Row segs={line(s(` browse: ${browse.length} record${browse.length === 1 ? "" : "s"}`, "amber"), s(` · enter or click to open · ↑↓ to move`, "dim"))} />
+							<Row segs={line(s(` browse: ${browse.length} record${browse.length === 1 ? "" : "s"}`, "amber"), s(` - enter or click to open - ↑↓ to move`, "dim"))} />
 							{browse.map((hit: RomHit, index) => (
 								<button className="block w-full cursor-pointer text-left" key={hit.rom.id} onClick={() => openRom(hit.rom, input)} onMouseEnter={() => setSel(index)} ref={(element) => { browseItemRefs.current[index] = element; }} type="button">
 									<Row inverse={index === sel} segs={resultSegments(hit, index)} />
 								</button>
 							))}
-							{liveHits.length > browse.length && <Row segs={line(s(` showing first ${browse.length} of ${liveHits.length} matches · refine the query to narrow it`, "dim"))} />}
+							{liveHits.length > browse.length && <Row segs={line(s(` showing first ${browse.length} of ${liveHits.length} matches - refine the query to narrow it`, "dim"))} />}
 						</div>
 					) : live ? (
 						<div className="mt-1">
@@ -438,8 +438,8 @@ export function Term() {
 			/>
 			<div className="fixed inset-x-0 bottom-0 border-t border-neutral-800 bg-[#202020] text-neutral-500">
 				<div className="pre flex justify-between px-2 py-0.5 text-[11px] sm:text-[12px]">
-					<span className="truncate text-neutral-500">roms tn:{cwd} · {statusText} · source: http://92.35.124.13</span>
-					<span className="hidden shrink-0 pl-4 text-neutral-600 sm:inline">tab complete · ↑↓ select · enter open · ctrl-l clear · help</span>
+					<span className="truncate text-neutral-500">roms tn:{cwd} - {statusText} - source: http://92.35.124.13</span>
+					<span className="hidden shrink-0 pl-4 text-neutral-600 sm:inline">tab complete - ↑↓ select - enter open - ctrl-l clear - help</span>
 					<span className="shrink-0 pl-2 text-neutral-600 sm:hidden">help</span>
 				</div>
 			</div>
