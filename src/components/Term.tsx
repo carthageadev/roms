@@ -62,16 +62,17 @@ function bootLines(status: string, roms: RomEntry[], systems: RomSystem[], error
 	const base: Line[] = [
 		...BANNER.map((value) => line(s(value, "amber"))),
 		blank,
-		line(s("ROMS TN 1.0", "bright"), s("  shared index  mounted /", "dim")),
+		line(s("ROMS TN 1.0", "bright")),
 	];
 	if (error) {
-		return [...base, line(s(`index unavailable: ${error}`, "err")), blank, line(s("retry the page after checking the Atlas data source", "dim"))];
+		return [...base, line(s(`STATUS: INDEX ERROR · ${error}`, "err")), blank, line(s("retry the page after checking the Atlas data source", "dim"))];
 	}
 	if (!roms.length) {
-		return [...base, line(s(status, "dim")), blank, line(s("fetching shared Atlas metadata and roms.json.gz", "dim")), blank];
+		return [...base, line(s(`STATUS: ${status}`, "dim")), blank, line(s("the search prompt will unlock when the shared index is ready", "dim")), blank];
 	}
 	return [
 		...base,
+		line(s("STATUS: INDEX READY · SHARED ATLAS DATA", "bright")),
 		line(s(`${roms.length.toLocaleString()} records / ${systems.length} systems / ${fmtSize(roms.reduce((sum, rom) => sum + (rom.sizeBytes || 0), 0))} indexed`, "dim")),
 		line(s("source: carthageadev.github.io/atlas/data · weekly build · read-only", "dim")),
 		line(s("no scraper in this frontend · no ROM files hosted here", "dim")),
@@ -346,11 +347,11 @@ export function Term() {
 	const before = input.slice(0, caret);
 	const atCaret = input.slice(caret, caret + 1);
 	const after = input.slice(caret + 1);
-	const statusText = !roms.length ? status : browse ? `${browse.length} records · browse` : liveQuery ? `${liveHits.length} hit${liveHits.length === 1 ? "" : "s"}` : `${roms.length.toLocaleString()} records`;
+	const statusText = !roms.length ? `STATUS: ${status}` : browse ? `${browse.length} records · browse` : liveQuery ? `${liveHits.length} hit${liveHits.length === 1 ? "" : "s"}` : "index ready · shared Atlas data";
 
 	return (
 		<div className="min-h-screen px-3 pb-16 pt-3 sm:px-5" onMouseUp={focus}>
-			<div>{lines.slice(0, booted).map((value, index) => <Row key={index} segs={value} />)}</div>
+			<div aria-live="polite">{lines.slice(0, booted).map((value, index) => <Row key={index} segs={value} />)}</div>
 			{blocks.map((block) => (
 				<div key={block.id}>
 					{block.input !== undefined && <Row segs={[...prompt(block.cwd ?? "/"), s(block.input, "fg")]} />}
