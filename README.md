@@ -1,4 +1,4 @@
-# roms.tn
+# ROMS TN
 
 Terminal-style ROM index and search frontend for [roms.tn](https://roms.tn).
 
