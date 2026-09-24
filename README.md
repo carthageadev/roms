@@ -1,13 +1,13 @@
 # roms.tn
 
-Minimalist ROM index and search frontend for [roms.tn](https://roms.tn).
+Terminal-style ROM index and search frontend for [roms.tn](https://roms.tn).
 
-This app does **not** run a scraper. It consumes the same weekly build produced by the Atlas repository:
+This app does **not** run a scraper and does **not** commit a ROM list. It consumes the same weekly Atlas build at runtime:
 
 - `https://carthageadev.github.io/atlas/data/meta.json`
 - `https://carthageadev.github.io/atlas/data/roms.json.gz`
 
-The index is decompressed in the browser, then searched locally. Queries support plain text plus compact filters such as `p:n64`, `c:nintendo`, and `y:199x`.
+The frontend downloads and decompresses the shared index in the browser, then searches it locally. Plain text searches titles, companies, systems, and paths. Filters include `p:n64`, `c:nintendo`, and `y:199x`.
 
 ## Run locally
 
@@ -18,4 +18,4 @@ bun run dev
 
 To point the app at a different published index, set `VITE_ATLAS_DATA_URL` before starting Vite.
 
-The previous frontend is preserved on the `legacy` branch. `main` contains the minimalist frontend.
+The previous premium landing-page frontend is preserved on the `legacy` branch. `main` contains the terminal frontend.
