@@ -40,7 +40,7 @@ export function SearchBar({ value, onChange, onKeyDown, inputRef, active }: Prop
 	useEffect(syncScroll, [value]);
 
 	return (
-		<div className={`relative flex w-full items-center border-b transition-colors duration-300 ${focused ? "border-acc" : "border-neutral-700 hover:border-neutral-500"} ${active ? "h-12" : "h-14"}`}>
+		<div className={`relative flex w-full items-center border-b transition-colors duration-150 ease-out ${focused ? "border-acc" : "border-neutral-700 hover:border-neutral-500"} ${active ? "h-12" : "h-14"}`}>
 			<span className="mr-4 select-none text-base text-acc">&gt;</span>
 			<div className="relative h-full min-w-0 flex-1 text-[15px]">
 				<div aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre" ref={overlayRef}>
