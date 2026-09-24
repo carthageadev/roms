@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { buildSystems, completions, commonPrefix, fileName, fmtSize, pathForRom, type RomSystem } from "../lib/fs";
 import { loadRomIndex, type RomEntry, searchRoms, type RomHit } from "../lib/roms";
 import { COMMANDS, TAKES_PATH, blank, line, runCommand, s, type Line, type Seg, type Tone } from "../lib/shell";
+import { PixelIcon } from "./PixelIcon";
 
 const TONE: Record<Tone, string> = {
 	fg: "text-fg",
@@ -382,7 +383,8 @@ export function Term() {
 	const statusText = !roms.length ? `STATUS: ${status}` : browse ? `${browse.length} records - browse` : liveQuery ? `${liveHits.length} hit${liveHits.length === 1 ? "" : "s"}` : `DATA: ${dataSource}`;
 
 	return (
-		<div className="min-h-screen px-3 pb-16 pt-3 sm:px-5" onMouseUp={focus}>
+		<div className="relative min-h-screen px-3 pb-16 pt-3 sm:px-5" onMouseUp={focus}>
+			<div className="pointer-events-none absolute right-5 top-5 hidden opacity-90 sm:block"><PixelIcon /></div>
 			<div aria-live="polite">{lines.slice(0, booted).map((value, index) => <Row key={index} segs={value} />)}</div>
 			{blocks.map((block) => (
 				<div key={block.id}>
