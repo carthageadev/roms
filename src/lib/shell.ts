@@ -187,7 +187,7 @@ export function runCommand(input: string, context: ShellCtx): ShellResult {
 			if (node.kind === "root") {
 				const lines: Line[] = [line(s(`total ${systems.length + ROOT_FILES.length}`, "dim"))];
 				for (const system of systems) lines.push(directoryRow(system));
-				lines.push(blank, line(s("source: http://92.35.124.13 · weekly data build", "dim")));
+				lines.push(blank, line(s("source: http://92.35.124.13 - weekly data build", "dim")));
 				return { lines };
 			}
 			const games = dirOf(roms, node.system.key);

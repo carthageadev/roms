@@ -71,7 +71,7 @@ async function fetchRoms(base: string, version: string | undefined, onProgress: 
 			response = (await cache.match(cacheKey)) ?? null;
 			if (response) {
 				source = "cache";
-				onProgress("loading cached roms.json.gz · no update fetch needed");
+				onProgress("loading cached roms.json.gz - no update fetch needed");
 			}
 		} catch {
 			response = null;
@@ -106,7 +106,7 @@ async function fetchRoms(base: string, version: string | undefined, onProgress: 
 			if (received - lastReport >= 256 * 1024) {
 				const progress = totalHeader ? ` ${Math.round((received / totalHeader) * 100)}%` : "";
 				const prefix = source === "cache" ? "cached roms.json.gz" : "fetching roms.json.gz";
-				onProgress(`${prefix} · ${formatBytes(received)}${totalHeader ? ` / ${formatBytes(totalHeader)}` : ""}${progress}`);
+				onProgress(`${prefix} - ${formatBytes(received)}${totalHeader ? ` / ${formatBytes(totalHeader)}` : ""}${progress}`);
 				lastReport = received;
 			}
 		}
@@ -116,7 +116,7 @@ async function fetchRoms(base: string, version: string | undefined, onProgress: 
 		received = buffer.byteLength;
 	}
 	const prefix = source === "cache" ? "cached roms.json.gz" : "fetching roms.json.gz";
-	onProgress(`${prefix} · ${formatBytes(received)}${totalHeader ? ` / ${formatBytes(totalHeader)} · 100%` : ""}`);
+	onProgress(`${prefix} - ${formatBytes(received)}${totalHeader ? ` / ${formatBytes(totalHeader)} - 100%` : ""}`);
 	onProgress("decompressing roms.json.gz");
 	const stream = new Blob(chunks as BlobPart[]).stream().pipeThrough(new DecompressionStream("gzip"));
 	onProgress("parsing roms.json");
@@ -142,7 +142,7 @@ export function loadRomIndex(onProgress: (message: string) => void = () => {}): 
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				errors.push(`${base}: ${message}`);
-				onProgress("data source unavailable · trying next source");
+				onProgress("data source unavailable - trying next source");
 			}
 		}
 		throw new Error(`Unable to load the data index. ${errors.join(" ")}`);
