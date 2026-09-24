@@ -170,9 +170,6 @@ export default function App() {
 						<SearchBar active={active} inputRef={inputRef} onChange={setQuery} onKeyDown={onInputKeyDown} value={query} />
 					</div>
 
-					<div className={`overflow-hidden text-[10px] text-neutral-700 transition-[height,opacity] duration-150 ease-out ${active ? "h-0 opacity-0" : "mt-4 h-5 opacity-100"}`}>
-						<span>/ focus</span><span className="mx-3">p:n64</span><span>c:nintendo</span><span>enter to inspect</span>
-					</div>
 				</div>
 			</header>
 
