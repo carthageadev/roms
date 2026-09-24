@@ -65,14 +65,14 @@ function bootLines(status: string, dataSource: string, roms: RomEntry[], systems
 		line(s("ROMS TN 1.0", "bright")),
 	];
 	if (error) {
-		return [...base, line(s(`STATUS: INDEX ERROR · ${error}`, "err")), blank, line(s("retry the page after checking the Atlas data source", "dim"))];
+		return [...base, line(s(`STATUS: INDEX ERROR · ${error}`, "err")), blank, line(s("retry after checking the data source", "dim"))];
 	}
 	if (!roms.length) {
 		return [...base, line(s(`STATUS: ${status}`, "dim")), blank, line(s("the search prompt will unlock when the shared index is ready", "dim")), blank];
 	}
 	return [
 		...base,
-		line(s("STATUS: INDEX READY · SHARED ATLAS DATA", "bright")),
+		line(s("STATUS: INDEX READY · DATA LOADED", "bright")),
 		line(s(`DATA: ${dataSource}`, "dim")),
 		line(s(`${roms.length.toLocaleString()} records / ${systems.length} systems / ${fmtSize(roms.reduce((sum, rom) => sum + (rom.sizeBytes || 0), 0))} indexed`, "dim")),
 		line(s("source: http://92.35.124.13 · weekly build · source links open externally", "dim")),
@@ -88,7 +88,7 @@ export function Term() {
 	const [booted, setBooted] = useState(0);
 	const [roms, setRoms] = useState<RomEntry[]>([]);
 	const [systems, setSystems] = useState<RomSystem[]>([]);
-	const [status, setStatus] = useState("connecting to shared Atlas index");
+	const [status, setStatus] = useState("connecting to data index");
 	const [dataSource, setDataSource] = useState("waiting for index");
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [cwd, setCwd] = useState("/");
@@ -123,8 +123,8 @@ export function Term() {
 				if (cancelled) return;
 				setRoms(index.roms);
 				setSystems(buildSystems(index.roms));
-				setDataSource(index.source === "cache" ? "cached data loaded · no new index update" : "new data fetched from shared Atlas");
-				setStatus("index ready · shared Atlas data");
+				setDataSource(index.source === "cache" ? "cached data loaded · no new index update" : "new data fetched from source");
+				setStatus("index ready · data loaded");
 			})
 			.catch((error: unknown) => {
 				if (!cancelled) setLoadError(error instanceof Error ? error.message : String(error));
