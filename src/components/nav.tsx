@@ -28,14 +28,17 @@ export function ZenNav() {
 		<>
 			<Link
 				to="/"
-				aria-label="Home"
-				className="fixed left-5 top-5 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.22] bg-[#0a0a0d]/75 text-white backdrop-blur-xl transition-colors hover:bg-white hover:text-black sm:left-7 sm:top-7"
+				aria-label="roms.tn home"
+				className="group fixed left-5 top-5 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.22] bg-[#0a0a0d]/75 text-white backdrop-blur-xl transition-colors hover:bg-white hover:text-black sm:left-7 sm:top-7"
 			>
-				<span className="relative h-4 w-4" aria-hidden>
-					<span className="absolute left-0 top-[7px] h-px w-4 rotate-[-34deg] bg-current" />
-					<span className="absolute left-[4px] top-[8px] h-px w-3 rotate-[35deg] bg-current opacity-60" />
-					<span className="absolute left-[7px] top-[6px] h-1 w-1 rounded-full bg-current" />
-				</span>
+				<img
+					alt=""
+					aria-hidden="true"
+					className="h-5 w-5 transition-[filter] duration-150 group-hover:brightness-0"
+					height={20}
+					src="/icon.png"
+					width={20}
+				/>
 			</Link>
 
 			<div className="fixed right-5 top-5 z-50 sm:right-7 sm:top-7">

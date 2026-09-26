@@ -1,0 +1,31 @@
+{
+	"name": "roms.tn — the retro preservation index",
+	"short_name": "roms.tn",
+	"description": "A quiet index for games worth keeping close. Discover, save and curate retro game records.",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"background_color": "#060608",
+	"theme_color": "#060608",
+	"categories": ["games", "utilities"],
+	"icons": [
+		{
+			"src": "/icon-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/icon-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/icon-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	]
+}
