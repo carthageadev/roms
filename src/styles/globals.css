@@ -1,10 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-	--font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-	--color-acc: #e6ff5c;
-	--color-acc-dim: #77832f;
-	--color-ink: #0c0d0b;
+	--font-sans: "Geist Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+	--font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+	--color-void: #070708;
+	--color-slab: #0b0b0f;
+	--color-slab-2: #0a0a0e;
+}
+
+html {
+	color-scheme: dark;
 }
 
 html,
@@ -13,85 +19,193 @@ body,
 	min-height: 100%;
 }
 
-html {
-	background: #0c0d0b;
-}
-
 body {
 	margin: 0;
-	background: #0c0d0b;
-	color: #c9cbc3;
-	font-family: var(--font-mono);
-	font-feature-settings: "calt" 0, "liga" 0;
+	background:
+		radial-gradient(800px 460px at 50% -130px, rgba(130, 146, 185, 0.12), transparent 72%),
+		#070708;
 	-webkit-font-smoothing: antialiased;
-}
-
-button,
-input {
-	font: inherit;
+	text-rendering: optimizeLegibility;
 }
 
 ::selection {
-	background: #e6ff5c;
-	color: #0c0d0b;
+	background: rgba(220, 228, 250, 0.25);
+	color: #fff;
 }
 
-.atmosphere {
-	background:
-		radial-gradient(circle at 50% -15%, rgba(230, 255, 92, 0.055), transparent 34rem),
-		#0c0d0b;
+/* Quiet, living orbit — presence without noise. */
+.zen-orbit {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	border-radius: 999px;
+	transform: translate(-50%, -50%);
+	pointer-events: none;
+}
+.zen-orbit::after {
+	content: "";
+	position: absolute;
+	top: -3px;
+	left: 50%;
+	height: 5px;
+	width: 5px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.78);
+	box-shadow: 0 0 17px rgba(255, 255, 255, 0.55);
+}
+.zen-orbit-one {
+	width: 430px;
+	height: 430px;
+	animation: orbitTurn 28s linear infinite;
+}
+.zen-orbit-two {
+	width: 650px;
+	height: 650px;
+	border-color: rgba(255, 255, 255, 0.055);
+	animation: orbitTurn 46s linear infinite reverse;
+}
+.zen-orbit-three {
+	width: 900px;
+	height: 900px;
+	border-color: rgba(255, 255, 255, 0.035);
+	animation: breathe 12s ease-in-out infinite;
+}
+.zen-orbit-three::after {
+	display: none;
+}
+.zen-star {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 8px;
+	height: 8px;
+	transform: translate(-50%, -50%);
+	border-radius: 999px;
+	background: #fff;
+	box-shadow: 0 0 36px 12px rgba(230, 238, 255, 0.25);
+	animation: starPulse 5s ease-in-out infinite;
+	pointer-events: none;
 }
 
-.ascii {
-	font-variant-ligatures: none;
-	letter-spacing: 0;
-	line-height: 1;
-	white-space: pre;
+@keyframes orbitTurn {
+	to {
+		transform: translate(-50%, -50%) rotate(360deg);
+	}
+}
+@keyframes breathe {
+	50% {
+		transform: translate(-50%, -50%) scale(1.025);
+		opacity: 0.5;
+	}
+}
+@keyframes starPulse {
+	50% {
+		opacity: 0.5;
+		transform: translate(-50%, -50%) scale(0.72);
+	}
 }
 
-@keyframes logo-reveal {
+@media (max-width: 640px) {
+	.zen-orbit-one {
+		width: 320px;
+		height: 320px;
+	}
+	.zen-orbit-two {
+		width: 480px;
+		height: 480px;
+	}
+	.zen-orbit-three {
+		width: 650px;
+		height: 650px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.zen-orbit,
+	.zen-star {
+		animation: none;
+	}
+}
+
+/* Metal is reserved for the few controls where a choice has weight. */
+html .metal-fx-root[data-theme="dark"] {
+	background: #16161c;
+	color: #fff;
+}
+html .metal-fx-root[data-theme="dark"] .metal-fx-content,
+html .metal-fx-root[data-theme="dark"] .metal-fx-content *,
+html .metal-fx-root[data-theme="dark"] a,
+html .metal-fx-root[data-theme="dark"] button,
+html .metal-fx-root[data-theme="dark"] span {
+	color: #fff !important;
+	-webkit-text-fill-color: #fff !important;
+}
+html .metal-fx-root .metal-fx-glow-svg {
+	opacity: 0.25;
+}
+
+/* CSS brushed-chrome type — crisp at display sizes on dark backgrounds. */
+.chrome-text {
+	background: linear-gradient(180deg, #fff 0%, #fff 37%, #d8deeb 62%, #fff 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+	-webkit-text-fill-color: transparent;
+	letter-spacing: -0.055em;
+	padding-bottom: 0.07em;
+}
+
+.text-strong {
+	color: #f5f6fa;
+}
+.text-soft {
+	color: #c5c8d1;
+}
+.tnum {
+	font-variant-numeric: tabular-nums;
+}
+
+.panel {
+	background: rgba(255, 255, 255, 0.025);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	backdrop-filter: blur(14px);
+}
+
+.sheen {
+	background-image: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.55) 48%, transparent 66%);
+}
+
+.fade-up {
+	animation: fadeUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes fadeUp {
 	from {
-		clip-path: inset(0 100% 0 0);
 		opacity: 0;
-		transform: translateX(-5px);
+		transform: translateY(12px);
 	}
 	to {
-		clip-path: inset(0 0 0 0);
 		opacity: 1;
-		transform: translateX(0);
+		transform: none;
 	}
 }
 
-.logo-line {
-	animation: logo-reveal 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes rise {
+@keyframes scan {
 	from {
-		opacity: 0;
-		transform: translateY(5px);
+		transform: translateY(-120%);
 	}
 	to {
-		opacity: 1;
-		transform: translateY(0);
+		transform: translateY(420%);
 	}
 }
-
-.rise {
-	animation: rise 240ms ease-out both;
-}
-
-@keyframes fade-in {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
-
-.fade-in {
-	animation: fade-in 180ms ease-out both;
+.scanline::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	height: 34%;
+	background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.11), transparent);
+	animation: scan 5.5s linear infinite;
+	pointer-events: none;
 }
 
 @keyframes dialog-in {
@@ -104,46 +218,24 @@ input {
 		transform: translateY(0) scale(1);
 	}
 }
-
 .dialog-in {
 	animation: dialog-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes blink {
-	0%,
-	45% {
-		opacity: 1;
-	}
-	46%,
-	100% {
-		opacity: 0;
-	}
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
 }
-
-.blink {
-	animation: blink 1.1s steps(1) infinite;
+::-webkit-scrollbar-track {
+	background: #070708;
+}
+::-webkit-scrollbar-thumb {
+	background: #303038;
+	border-radius: 999px;
+	border: 3px solid #070708;
 }
 
 * {
-	scrollbar-color: #30322d transparent;
+	scrollbar-color: #303038 transparent;
 	scrollbar-width: thin;
-}
-
-*::-webkit-scrollbar {
-	height: 6px;
-	width: 6px;
-}
-
-*::-webkit-scrollbar-thumb {
-	background: #30322d;
-}
-
-@media (prefers-reduced-motion: reduce) {
-	*,
-	*::before,
-	*::after {
-		animation-duration: 0.01ms !important;
-		animation-iteration-count: 1 !important;
-		scroll-behavior: auto !important;
-	}
 }
