@@ -210,7 +210,7 @@ export function LibraryRack() {
 												</button>
 											</div>
 											<p className="mt-0.5 truncate font-mono text-[11.5px] uppercase tracking-[0.12em] text-white/58">
-												{game.platform} - {game.year ?? "—"} - {formatMb(game.sizeMb)}
+												{game.platform} - {game.year ?? "-"} - {formatMb(game.sizeMb)}
 											</p>
 											<div className="mt-2.5 flex flex-wrap gap-1">
 												{STATUS_KEYS.map((key) => {
@@ -368,7 +368,7 @@ export function LibraryRack() {
 											>
 												{game.title}
 											</Link>
-											<span className="font-mono text-[11.5px] text-white/48">{game.year ?? "—"}</span>
+											<span className="font-mono text-[11.5px] text-white/48">{game.year ?? "-"}</span>
 										</div>
 										{entry.notes && <p className="mt-0.5 truncate pl-[18px] text-[11px] text-white/58">{entry.notes}</p>}
 									</div>

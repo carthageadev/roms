@@ -94,7 +94,7 @@ export function Cover({
 			{!compact && (
 				<div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-3 pb-2.5 font-mono text-[11px] uppercase tracking-[0.15em] text-white/72">
 					<span className="truncate">{view.platform}</span>
-					<span className="tnum text-white/60">{view.year ?? "—"}</span>
+					<span className="tnum text-white/60">{view.year ?? "-"}</span>
 				</div>
 			)}
 			<div className="pointer-events-none absolute inset-0 rounded-[9px] ring-1 ring-inset ring-white/[0.09]" />
@@ -206,7 +206,7 @@ export function RomCard({ view, spineNumber }: { view: RomView; spineNumber?: nu
 					</p>
 				</div>
 				<span className="tnum shrink-0 rounded border border-white/[0.11] bg-white/[0.02] px-1.5 py-0.5 font-mono text-[11px] text-white/60">
-					{view.year ?? "—"}
+					{view.year ?? "-"}
 				</span>
 			</div>
 			<div className="flex items-center justify-between border-t border-white/[0.12] px-0.5 pt-2">

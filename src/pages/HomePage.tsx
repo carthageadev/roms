@@ -39,7 +39,7 @@ export default function HomePage() {
 
 					<p className="fade-up mt-5 text-left font-mono text-[11px] uppercase tracking-[0.14em] text-white/40" style={{ animationDelay: "150ms" }}>
 						{error
-							? "data index unreachable — browse once you are back online"
+							? "data index unreachable - browse once you are back online"
 							: loading
 								? "fetching the shared index…"
 								: `${total.toLocaleString()} records in the shared index`}
@@ -68,7 +68,7 @@ export default function HomePage() {
 								A place for the games you want to keep nearby.
 							</p>
 						</div>
-						<span className="mt-1 font-mono text-[15px] text-white/58">{savedRows || "—"}</span>
+						<span className="mt-1 font-mono text-[15px] text-white/58">{savedRows || "-"}</span>
 					</div>
 				</Link>
 
@@ -80,7 +80,7 @@ export default function HomePage() {
 								A thought, a feeling, a handful of games.
 							</p>
 						</div>
-						<span className="mt-1 font-mono text-[15px] text-white/58">{collections.length || "—"}</span>
+						<span className="mt-1 font-mono text-[15px] text-white/58">{collections.length || "-"}</span>
 					</div>
 				</Link>
 			</section>

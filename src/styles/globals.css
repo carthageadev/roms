@@ -33,7 +33,7 @@ body {
 	color: #fff;
 }
 
-/* Quiet, living orbit — presence without noise. */
+/* Quiet, living orbit - presence without noise. */
 .zen-orbit {
 	position: absolute;
 	left: 50%;
@@ -145,7 +145,7 @@ html .metal-fx-root .metal-fx-glow-svg {
 	opacity: 0.25;
 }
 
-/* CSS brushed-chrome type — crisp at display sizes on dark backgrounds. */
+/* CSS brushed-chrome type - crisp at display sizes on dark backgrounds. */
 .chrome-text {
 	background: linear-gradient(180deg, #fff 0%, #fff 37%, #d8deeb 62%, #fff 100%);
 	-webkit-background-clip: text;

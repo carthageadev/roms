@@ -14,7 +14,7 @@ function useTitleSync(): void {
 	const { pathname } = useLocation();
 	useEffect(() => {
 		const label = pathname === "/" ? "" : pathname.split("/")[1] ?? "";
-		document.title = label ? `${label} / roms.tn` : "roms.tn — the retro preservation index";
+		document.title = label ? `${label} / roms.tn` : "roms.tn - the retro preservation index";
 	}, [pathname]);
 }
 

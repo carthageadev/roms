@@ -43,11 +43,11 @@ export default function RomPage() {
 	const status: LibraryStatus = entry?.status ?? "saved";
 	const specs: Array<[string, string]> = [
 		["System", game.platform],
-		["Released", game.year ? String(game.year) : "—"],
+		["Released", game.year ? String(game.year) : "-"],
 		["Publisher", game.publisher],
 		["Footprint", formatSizeMb(game.sizeMb)],
-		["Folder", game.folder || "—"],
-		["Date", game.date || "—"],
+		["Folder", game.folder || "-"],
+		["Date", game.date || "-"],
 		["Record id", game.id],
 		["Index", `d${(game.hue % 100).toString().padStart(2, "0")}`],
 	];
@@ -160,11 +160,11 @@ export default function RomPage() {
 							</div>
 							<div className="flex items-start justify-between gap-3">
 								<dt className="text-white/48">Path</dt>
-								<dd className="break-all text-right text-white/62">{game.folder || "—"}</dd>
+								<dd className="break-all text-right text-white/62">{game.folder || "-"}</dd>
 							</div>
 							<div className="flex items-start justify-between gap-3">
 								<dt className="text-white/48">Size field</dt>
-								<dd className="break-all text-right text-white/62">{game.size || "—"}</dd>
+								<dd className="break-all text-right text-white/62">{game.size || "-"}</dd>
 							</div>
 							<div className="flex items-start justify-between gap-3">
 								<dt className="text-white/48">Registry</dt>
@@ -192,7 +192,7 @@ export default function RomPage() {
 					</h1>
 
 					<p className="mt-4 max-w-[620px] text-[14.5px] leading-[1.7] text-white/70">
-						{`Filed under ${game.publisher} on ${game.platform}${game.year ? `, dated ${game.year}` : ""}. This page is generated straight from the shared index record — title, company, console, folder, size and date are exactly what the host reports.`}
+						{`Filed under ${game.publisher} on ${game.platform}${game.year ? `, dated ${game.year}` : ""}. This page is generated straight from the shared index record - title, company, console, folder, size and date are exactly what the host reports.`}
 					</p>
 
 					<dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/[0.1] bg-white/[0.06] sm:grid-cols-4">
@@ -220,7 +220,7 @@ export default function RomPage() {
 						</div>
 
 						{collections.length === 0 ? (
-							<p className="mt-4 text-[13px] text-white/62">You have no lists yet — name one below to start.</p>
+							<p className="mt-4 text-[13px] text-white/62">You have no lists yet - name one below to start.</p>
 						) : (
 							<div className="mt-4 flex flex-wrap gap-2">
 								{collections.map((collection) => {
@@ -303,7 +303,7 @@ export default function RomPage() {
 									<Cover view={other} className="aspect-[4/3] w-full" />
 									<p className="mt-2.5 truncate text-[13px] font-medium text-white/88">{other.title}</p>
 									<p className="tnum mt-0.5 truncate font-mono text-[11.5px] text-white/58">
-										{other.year ?? "—"} - {other.publisher}
+										{other.year ?? "-"} - {other.publisher}
 									</p>
 								</Link>
 							);

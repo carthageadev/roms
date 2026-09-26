@@ -4,11 +4,11 @@ node_modules/
 # build output
 dist/
 
-# local env files — never commit secrets
+# local env files - never commit secrets
 .env
 .env*.local
 
-# cartridge logic (3d models, textures, scraper — kept local only)
+# cartridge logic (3d models, textures, scraper - kept local only)
 .cartridge-logic/
 
 # vercel

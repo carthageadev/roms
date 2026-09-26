@@ -8,8 +8,8 @@ import { consoleStats, romView, topCompanies } from "../lib/rom-view";
 
 const SORTS = [
 	{ key: "index", label: "Index order" },
-	{ key: "az", label: "A–Z" },
-	{ key: "za", label: "Z–A" },
+	{ key: "az", label: "A-Z" },
+	{ key: "za", label: "Z-A" },
 	{ key: "year", label: "Newest" },
 ] as const;
 

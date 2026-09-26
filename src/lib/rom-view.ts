@@ -79,7 +79,7 @@ export function romSizeMb(rom: RomEntry): number | null {
 }
 
 export function formatSizeMb(sizeMb: number | null): string {
-	if (sizeMb === null) return "—";
+	if (sizeMb === null) return "-";
 	if (sizeMb >= 1024) return `${(sizeMb / 1024).toFixed(1)} GB`;
 	return `${sizeMb >= 10 ? sizeMb.toFixed(1) : sizeMb.toFixed(2)} MB`;
 }
@@ -109,7 +109,7 @@ export function toRomView(rom: RomEntry): RomView {
 
 const viewCache = new WeakMap<RomEntry, RomView>();
 
-/** Memoised per record — the same `RomEntry` object always maps to one view. */
+/** Memoised per record - the same `RomEntry` object always maps to one view. */
 export function romView(rom: RomEntry): RomView {
 	const cached = viewCache.get(rom);
 	if (cached) return cached;
@@ -139,7 +139,7 @@ export function buildRomIndexView(roms: RomEntry[]): RomIndexView {
 	return { byId, bySlug, views, roms };
 }
 
-/** Resolve `/rom/:slugOrId` — ids win, slugs are the pretty form. */
+/** Resolve `/rom/:slugOrId` - ids win, slugs are the pretty form. */
 export function findRom(index: RomIndexView, param: string): RomEntry | undefined {
 	return index.byId.get(param) ?? index.bySlug.get(param.toLowerCase());
 }

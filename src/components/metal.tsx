@@ -63,7 +63,7 @@ export function MetalShell({
 	);
 }
 
-/** Crisp CSS brushed-chrome type — far sharper at display sizes than canvas text. */
+/** Crisp CSS brushed-chrome type - far sharper at display sizes than canvas text. */
 export function MetalHeadline({ children, className = "" }: { children: string; className?: string }) {
 	return <span className={`chrome-text block font-semibold leading-[1.02] ${className}`}>{children}</span>;
 }

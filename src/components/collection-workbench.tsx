@@ -274,7 +274,7 @@ export function CollectionWorkbench({ collection }: { collection: ListCollection
 															{game.title}
 														</Link>
 														<p className="mt-0.5 truncate font-mono text-[11.5px] uppercase tracking-[0.12em] text-white/58">
-															{game.platform} - {game.year ?? "—"} - {game.publisher} - {formatSizeMb(game.sizeMb)}
+															{game.platform} - {game.year ?? "-"} - {game.publisher} - {formatSizeMb(game.sizeMb)}
 														</p>
 													</div>
 													<button
@@ -403,7 +403,7 @@ function PickerRow({ game, listId }: { game: RomView; listId: string }) {
 						{game.title}
 					</Link>
 					<p className="truncate font-mono text-[11px] text-white/54">
-						{game.platform} - {game.year ?? "—"}
+						{game.platform} - {game.year ?? "-"}
 					</p>
 				</div>
 			</div>
