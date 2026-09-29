@@ -30,11 +30,12 @@ function ScrollToTop() {
 function Shell() {
 	useTitleSync();
 	const { pathname } = useLocation();
-	// The landing ships its own footer, so the global one is for inner pages only.
+	// The landing is the zip's UI verbatim: its own sticky metal mark, its own
+	// footer. Our global nav (home icon + hamburger) must not sit on top of it.
 	const isLanding = pathname === "/";
 	return (
 		<div className="relative min-h-screen bg-[#0a0a0b] font-sans text-[#f5f5f2] antialiased">
-			<ZenNav />
+			{!isLanding && <ZenNav />}
 			<main className="min-h-screen">
 				<Routes>
 					<Route path="/" element={<Landing />} />
