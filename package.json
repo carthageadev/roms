@@ -15,10 +15,14 @@
 	"dependencies": {
 		"@fontsource/geist-mono": "^5.3.0",
 		"@fontsource/geist-sans": "^5.3.0",
+		"@react-three/drei": "10.7.7",
+		"@react-three/fiber": "9.6.1",
+		"@react-three/postprocessing": "3.0.4",
 		"metal-fx": "^2.0.11",
 		"react": "^19.0.0",
 		"react-dom": "^19.0.0",
-		"react-router-dom": "^7.18.4"
+		"react-router-dom": "^7.18.4",
+		"three": "0.184.0"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.2.5",
