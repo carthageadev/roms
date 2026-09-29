@@ -1,29 +1,47 @@
 /**
- * Placeholder while the 3D hero chunk loads: three stacked generated covers
- * in the same footprint, so the layout never jumps.
+ * Placeholder while the 3D hero chunk loads: a full seven-cart stack in the
+ * same footprint, so the layout never jumps or briefly collapses to three.
  */
 
 import { ShelfCover } from "./ui";
 import type { RomView } from "../lib/rom-view";
 
 export default function HeroCartridgesFallback({ views }: { views: RomView[] }) {
-	const [a, b, c] = views;
-	if (!a) return null;
+	if (views.length === 0) return null;
+	const radius = Math.min(3, Math.floor(views.length / 2));
+	const visible = views
+		.map((view, index) => {
+			let offset = index;
+			const half = views.length / 2;
+			if (offset > half) offset -= views.length;
+			if (offset < -half) offset += views.length;
+			return { view, offset };
+		})
+		.filter(({ offset }) => Math.abs(offset) <= radius)
+		.sort((a, b) => a.offset - b.offset);
+
 	return (
 		<div className="relative mx-auto h-full w-full max-w-[460px]">
-			{c && (
-				<div className="absolute top-[16%] left-[4%] w-[52%] rotate-[-9deg] opacity-60">
-					<ShelfCover view={c} className="aspect-[4/3] w-full" />
-				</div>
-			)}
-			{b && (
-				<div className="absolute top-[36%] right-[3%] w-[54%] rotate-[7deg] opacity-80">
-					<ShelfCover view={b} className="aspect-[4/3] w-full" />
-				</div>
-			)}
-			<div className="absolute top-[4%] left-1/2 w-[62%] -translate-x-1/2">
-				<ShelfCover view={a} className="aspect-[4/3] w-full" />
-			</div>
+			{visible.map(({ view, offset }) => {
+				const distance = Math.abs(offset);
+				const width = 56 - distance * 6;
+				const top = 38 + offset * 12;
+				return (
+					<div
+						key={`${view.id}-${offset}`}
+						className="absolute left-1/2"
+						style={{
+							top: `${top}%`,
+							width: `${width}%`,
+							zIndex: radius - distance + 1,
+							opacity: 1 - distance * 0.2,
+							transform: `translateX(-50%) rotate(${offset * 1.1}deg)`,
+						}}
+					>
+						<ShelfCover view={view} className="aspect-[4/3] w-full" />
+					</div>
+				);
+			})}
 		</div>
 	);
 }

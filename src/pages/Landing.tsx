@@ -519,7 +519,7 @@ export default function Landing() {
 						{heroItems.length > 0 ? (
 							<Suspense
 								fallback={
-									<HeroCartridgesFallback views={heroItems.slice(0, 3).map((item) => romView(item.rom))} />
+									<HeroCartridgesFallback views={heroItems.map((item) => romView(item.rom))} />
 								}
 							>
 								<HeroCartridges items={heroItems} />

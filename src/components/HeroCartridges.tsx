@@ -21,7 +21,7 @@
  * gallery gestures never navigate away from the landing page.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { createRoot, events, extend, useFrame, useThree } from "@react-three/fiber";
 import type { Catalogue, ReconcilerRoot } from "@react-three/fiber";
@@ -50,10 +50,12 @@ const DRACO_URL = "/cart/draco/";
 const TARGET_HEIGHT = 2.8;
 const LERP_SPEED = 5;
 const FACE_ROTATION = Math.PI / 2;
+const CAMERA_DISTANCE = 9;
 const GAP = 2.15;
 const STEP = 1.0;
 const DEPTH_STEP = 0.55;
-const CULL_RADIUS = 1;
+const VISIBLE_RADIUS = 3;
+const MIN_HORIZONTAL_VIEW = 8;
 
 /* Light rig defaults, copied from the studio's tuned preset. */
 const RIG = {
@@ -75,6 +77,38 @@ function wrappedOffset(index: number, selected: number, count: number): number {
 	if (offset > half) offset -= count;
 	if (offset < -half) offset += count;
 	return offset;
+}
+
+interface SlotTarget {
+	y: number;
+	z: number;
+	rotX: number;
+	rotY: number;
+	scale: number;
+}
+
+function getSlotTarget(offset: number): SlotTarget {
+	if (offset === 0) return { y: 0.2, z: 1.9, rotX: 0, rotY: 0, scale: 0.82 };
+	const sign = Math.sign(offset);
+	const abs = Math.abs(offset);
+	return {
+		y: -sign * (GAP + (abs - 1) * STEP),
+		z: -0.9 - (abs - 1) * DEPTH_STEP,
+		rotX: sign * 0.32,
+		rotY: -sign * 0.28,
+		scale: Math.max(0.5, 0.68 - (abs - 1) * 0.07),
+	};
+}
+
+function getStackBounds(radius: number): { minY: number; maxY: number } {
+	let minY = Number.POSITIVE_INFINITY;
+	let maxY = Number.NEGATIVE_INFINITY;
+	for (let offset = -radius; offset <= radius; offset++) {
+		const target = getSlotTarget(offset);
+		minY = Math.min(minY, target.y);
+		maxY = Math.max(maxY, target.y + TARGET_HEIGHT * target.scale);
+	}
+	return { minY, maxY };
 }
 
 /* One GPU upload per URL for the whole carousel. */
@@ -180,23 +214,22 @@ interface SlotProps {
 
 function CartridgeSlot({ item, index, count, selected, reducedMotion }: SlotProps) {
 	const ref = useRef<THREE.Group>(null!);
+	const initialized = useRef(false);
 	const isSelected = index === selected;
 
 	const labelUrl = useMemo(() => item.artUrl ?? labelDataUrl(romView(item.rom)), [item]);
 
 	const target = useMemo(() => {
-		const offset = wrappedOffset(index, selected, count);
-		if (offset === 0) return { y: 0.2, z: 1.9, rotX: 0, rotY: 0, scale: 0.82 };
-		const sign = Math.sign(offset);
-		const abs = Math.abs(offset);
-		return {
-			y: -sign * (GAP + (abs - 1) * STEP),
-			z: -0.9 - (abs - 1) * DEPTH_STEP,
-			rotX: sign * 0.32,
-			rotY: -sign * 0.28,
-			scale: Math.max(0.5, 0.68 - (abs - 1) * 0.07),
-		};
+		return getSlotTarget(wrappedOffset(index, selected, count));
 	}, [index, selected, count]);
+
+	useLayoutEffect(() => {
+		if (!ref.current || initialized.current) return;
+		ref.current.position.set(0, target.y, target.z);
+		ref.current.rotation.set(target.rotX, target.rotY + FACE_ROTATION, 0);
+		ref.current.scale.setScalar(target.scale);
+		initialized.current = true;
+	}, [target]);
 
 	useFrame((state, delta) => {
 		if (!ref.current) return;
@@ -215,29 +248,29 @@ function CartridgeSlot({ item, index, count, selected, reducedMotion }: SlotProp
 	return <group ref={ref}><Cartridge3D labelUrl={labelUrl} /></group>;
 }
 
-function Tonemap() {
+function Tonemap({ visibleRadius }: { visibleRadius: number }) {
 	const gl = useThree((s) => s.gl);
 	const camera = useThree((s) => s.camera);
 	const size = useThree((s) => s.size);
+	const bounds = useMemo(() => getStackBounds(visibleRadius), [visibleRadius]);
 	useEffect(() => {
 		gl.toneMapping = THREE.ACESFilmicToneMapping;
 		gl.toneMappingExposure = RIG.exposure;
 		if (camera instanceof THREE.PerspectiveCamera) {
-			// The hero gets only one side of the page on desktop. Preserve the
-			// studio's wide-screen horizontal framing as this canvas narrows,
-			// rather than letting the cartridges balloon and overlap.
-			const aspect = size.width / Math.max(size.height, 1);
-			const referenceAspect = 1.5;
-			const baseFov = THREE.MathUtils.degToRad(32);
+			// Fit the entire visible stack, not only its center cartridge, and
+			// keep enough horizontal room for the shell on narrow canvases.
+			const aspect = Math.max(size.width / Math.max(size.height, 1), 0.4);
+			const stackHeight = (bounds.maxY - bounds.minY) * 1.14;
+			const viewHeight = Math.max(stackHeight, MIN_HORIZONTAL_VIEW / aspect);
 			camera.fov = THREE.MathUtils.clamp(
-				THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(baseFov / 2) * referenceAspect / aspect)),
+				THREE.MathUtils.radToDeg(2 * Math.atan(viewHeight / (2 * CAMERA_DISTANCE))),
 				32,
-				64,
+				76,
 			);
 			camera.updateProjectionMatrix();
 		}
-		camera.lookAt(0, 1.15, 0);
-	}, [gl, camera, size.width, size.height]);
+		camera.lookAt(0, (bounds.minY + bounds.maxY) / 2, 0);
+	}, [gl, camera, size.width, size.height, bounds]);
 	return null;
 }
 
@@ -282,12 +315,13 @@ interface SceneProps {
 
 function HeroScene({ items, selected, reducedMotion }: SceneProps) {
 	const count = items.length;
+	const visibleRadius = Math.min(VISIBLE_RADIUS, Math.floor(count / 2));
 	return (
 		<>
-			<Tonemap />
+			<Tonemap visibleRadius={visibleRadius} />
 			<Rig />
 			{items.map((item, i) =>
-				Math.abs(wrappedOffset(i, selected, count)) <= CULL_RADIUS ? (
+				Math.abs(wrappedOffset(i, selected, count)) <= visibleRadius ? (
 					<CartridgeSlot
 						key={item.rom.id}
 						item={item}
@@ -334,13 +368,17 @@ export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
 		const element = containerRef.current;
 		if (!element) return;
 		let accumulated = 0;
+		let lastStepAt = Number.NEGATIVE_INFINITY;
 		const onWheel = (event: WheelEvent) => {
 			event.preventDefault();
+			const now = performance.now();
+			if (now - lastStepAt < 160) return;
 			accumulated += event.deltaY;
 			if (Math.abs(accumulated) < 55) return;
-			const steps = Math.sign(accumulated) * Math.min(3, Math.floor(Math.abs(accumulated) / 55));
-			accumulated -= steps * 55;
-			moveBy(steps);
+			const direction = Math.sign(accumulated);
+			accumulated = 0;
+			lastStepAt = now;
+			moveBy(direction);
 		};
 		element.addEventListener("wheel", onWheel, { passive: false });
 		return () => element.removeEventListener("wheel", onWheel);
