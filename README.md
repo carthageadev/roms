@@ -4,6 +4,19 @@ Premium ROM discovery, library and list frontend for [roms.tn](https://roms.tn).
 
 The landing is a single screen: hero, live searchable index, and a persistent shelf holding your saved records and your lists. Nothing navigates away to search or curate.
 
+## 3D hero cartridges
+
+The hero shows floating 3D cartridges instead of flat covers. The GLB shell, PBR plastic/paper materials, wrapping carousel math and studio light rig are ported from the `cartridge-studio` project (`D:\Github\cartridge-studio`); its debug panel, inspect mode and favorites UI were left behind.
+
+- The carousel holds popular records (N64, GBA, PSX, SNES), each bound to the live shared index by search, like the canon shelves.
+- Click a side cartridge to centre it; click the centred one to open its record page.
+- The 3D code lazy-loads in its own chunk, so first paint stays fast. A static 2D stack shows while it loads.
+- Labels are generated on a canvas by default: zero cover requests, ever.
+
+### Real box art (optional, hero only)
+
+By default no cover API is ever called. If you add your own ScreenScraper dev credentials to a gitignored `.env.local` (see `.env.example`, never commit keys), the app resolves real box art once per hero title, one request at a time, cached in the browser. The full index search never touches that API.
+
 ## Real data only
 
 This app does **not** run a scraper and does **not** commit a ROM list. It consumes the shared weekly index at runtime:

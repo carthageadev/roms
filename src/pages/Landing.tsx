@@ -8,9 +8,15 @@
  * data on screen is always the live host catalogue.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { MetalButton, MetalFrame, MetalMark, scrollToId } from "../components/metal";
+import { MetalButton, MetalMark, scrollToId } from "../components/metal";
+import HeroCartridgesFallback from "../components/HeroCartridgesFallback";
+import type { HeroCartridge } from "../components/HeroCartridges";
+import { resolveHeroArt } from "../lib/cover-art";
+import { resolveHero } from "../lib/hero";
+
+const HeroCartridges = lazy(() => import("../components/HeroCartridges"));
 import { ShelfCover } from "../components/ui";
 import { CANON_TEMPLATES, resolveCanon, type ResolvedCanonItem } from "../lib/canon";
 import {
@@ -22,7 +28,7 @@ import {
 	NAME_MAX,
 } from "../lib/library-store";
 import { DATA_SOURCE_HOST, useRomIndex } from "../lib/rom-index-context";
-import { featuredRoms, formatSizeMb, romView, type RomView } from "../lib/rom-view";
+import { formatSizeMb, romView, type RomView } from "../lib/rom-view";
 import { searchRoms } from "../lib/roms";
 import { useLibraryState } from "../lib/use-library";
 
@@ -151,7 +157,25 @@ export default function Landing() {
 		[lists],
 	);
 
-	const heroPicks = useMemo(() => featuredRoms(view.roms, 3).map(romView), [view.roms]);
+	// Hero cartridges: popular records bound to the live index, with optional
+	// real box art that resolves once and only for this list.
+	const heroResolved = useMemo(() => resolveHero(view.roms), [view.roms]);
+	const [heroArt, setHeroArt] = useState<Map<string, string | null>>(new Map());
+
+	useEffect(() => {
+		let cancelled = false;
+		resolveHeroArt(heroResolved.map((item) => item.rom.title)).then((art) => {
+			if (!cancelled) setHeroArt(art);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [heroResolved]);
+
+	const heroItems: HeroCartridge[] = useMemo(
+		() => heroResolved.map((item) => ({ rom: item.rom, artUrl: heroArt.get(item.rom.title) ?? null })),
+		[heroResolved, heroArt],
+	);
 
 	const canons = useMemo(
 		() => CANON_TEMPLATES.map((template) => ({ template, resolved: resolveCanon(view.roms, template) })),
@@ -483,29 +507,24 @@ export default function Landing() {
 						</p>
 					</div>
 
-					{/* stacked artifacts: the top one wears the shader */}
-					<div className="rise relative mx-auto h-[380px] w-full max-w-[420px] lg:h-[460px]">
-						{heroPicks[2] && (
-							<div className="absolute top-[16%] left-[4%] w-[52%] rotate-[-9deg] opacity-60">
-								<ShelfCover view={heroPicks[2]} className="aspect-[4/3] w-full" />
-							</div>
+					{/* floating 3D cartridges: popular records, resolved live */}
+					<div id="hero-3d" className="rise relative mx-auto h-[420px] w-full max-w-[460px] lg:h-[500px]">
+						{heroItems.length > 0 ? (
+							<Suspense
+								fallback={
+									<HeroCartridgesFallback views={heroItems.slice(0, 3).map((item) => romView(item.rom))} />
+								}
+							>
+								<HeroCartridges items={heroItems} />
+							</Suspense>
+						) : (
+							<p className="faint absolute inset-0 grid place-items-center text-[13px]">
+								{loading ? "Casting the hero shelf..." : "Hero shelf unavailable."}
+							</p>
 						)}
-						{heroPicks[1] && (
-							<div className="absolute top-[36%] right-[3%] w-[54%] rotate-[7deg] opacity-80">
-								<ShelfCover view={heroPicks[1]} className="aspect-[4/3] w-full" />
-							</div>
-						)}
-						{heroPicks[0] && (
-							<div className="absolute top-[4%] left-1/2 w-[62%] -translate-x-1/2">
-								<MetalFrame preset="gold" radius={16}>
-									<ShelfCover view={heroPicks[0]} className="aspect-[4/3] w-full" />
-								</MetalFrame>
-								<p className="mt-3 truncate text-center text-[12.5px]">{heroPicks[0].title}</p>
-								<p className="faint truncate text-center text-[11px]">
-									{heroPicks[0].platform} - {heroPicks[0].year ?? "-"}
-								</p>
-							</div>
-						)}
+						<p className="faint pointer-events-none absolute inset-x-0 bottom-1 text-center font-mono text-[10px] tracking-[0.18em] uppercase">
+							N64 - GBA - PSX - SNES
+						</p>
 					</div>
 				</div>
 			</header>
