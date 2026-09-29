@@ -101,7 +101,7 @@ export function Footer() {
 		<footer className="mt-24 pb-12 pt-8">
 			<div className="mx-auto flex max-w-[980px] flex-col items-center gap-3 px-5 text-center">
 				<span className="h-px w-12 bg-white/[0.2]" />
-				<p className="text-[12px] text-white/60">A quiet index for games worth keeping close.</p>
+				<p className="text-[12px] text-white/60">Every cartridge, one page.</p>
 				<div className="flex items-center gap-4 font-mono text-[10px] uppercase tracking-[0.12em] text-white/55">
 					<Link to="/browse" className="hover:text-white">
 						Discover

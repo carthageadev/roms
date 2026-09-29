@@ -47,6 +47,44 @@ export function Eyebrow({ children }: { children: ReactNode }) {
 }
 
 /**
+ * Cover art for the landing index. The shared index carries no artwork, so a
+ * stable hue plus the title initials stand in for the printed spine.
+ */
+export function ShelfCover({
+	view,
+	className = "",
+	compact = false,
+}: {
+	view: RomView;
+	className?: string;
+	compact?: boolean;
+}) {
+	return (
+		<div
+			className={`cover ${className}`}
+			style={{
+				background: `radial-gradient(120% 90% at 20% 0%, hsl(${view.hue} 44% 30%), hsl(${(view.hue + 40) % 360} 30% 9%) 68%, #0a0a0b)`,
+			}}
+		>
+			<span className="cover-glow" aria-hidden />
+			<span
+				className={`absolute inset-0 flex items-center justify-center font-semibold tracking-[-0.08em] text-white/90 ${
+					compact ? "text-lg" : "text-4xl"
+				}`}
+			>
+				{view.initials}
+			</span>
+			{!compact && (
+				<span className="absolute inset-x-3 bottom-2.5 flex justify-between text-[10px] tracking-[0.14em] text-white/55 uppercase">
+					<span className="truncate">{view.platform}</span>
+					<span className="tnum">{view.year ?? "-"}</span>
+				</span>
+			)}
+		</div>
+	);
+}
+
+/**
  * Deterministic generated cover art. There is no artwork in the real index,
  * so a stable hue plus the title initials stands in for the box spine.
  */

@@ -2,12 +2,22 @@
 
 Premium ROM discovery, library and list frontend for [roms.tn](https://roms.tn).
 
+The landing is a single screen: hero, live searchable index, and a persistent shelf holding your saved records and your lists. Nothing navigates away to search or curate.
+
+## Real data only
+
 This app does **not** run a scraper and does **not** commit a ROM list. It consumes the shared weekly index at runtime:
 
 - `https://carthageadev.github.io/atlas/data/meta.json`
 - `https://carthageadev.github.io/atlas/data/roms.json.gz`
 
 The index is decompressed and cached in the browser, then searched locally. Queries support plain text, wildcard/regex search, and compact filters such as `p:n64`, `c:nintendo`, and `y:199x`.
+
+Every record on screen is a real row from that index, including the generated cover art (a deterministic hue stands in for the missing artwork).
+
+## Curated canon shelves
+
+`src/lib/canon.ts` holds three editorial shelves. A template is not a hardcoded list of records: each entry is a *search intent* that gets bound to the best matching record in the live index at runtime, so a canon stays correct even when the host renames or re-files a dump. Any entry with no match in the index is reported rather than faked.
 
 ## Personal library and lists
 
@@ -19,7 +29,7 @@ roms.tn/library/v1
 
 The store supports:
 
-- Save or remove games from the personal library
+- Save or remove records from the personal library
 - Status: queued, in rotation, completed or mastered
 - Pinning and archivist notes
 - Creating, renaming and deleting lists
@@ -28,7 +38,19 @@ The store supports:
 - JSON manifest export
 - Cross-tab storage synchronization
 
-No account or server database is used yet.
+No account or server database is used.
+
+## Routes
+
+```text
+/                    landing: hero + index + shelf
+/browse              full paginated index with publisher and sort filters
+/library             personal rack with status, pins and notes
+/collections         all lists
+/collections/:id     list workbench with an append panel
+/rom/:slugOrId       single record page (explicit Download button only)
+/platforms           every console the index reports
+```
 
 ## Run locally
 
@@ -39,4 +61,9 @@ bun run dev
 
 To point the app at a different published index, set `VITE_ATLAS_DATA_URL` before starting Vite.
 
-The earlier minimalist frontend is preserved on the `terminal` branch. The original premium landing page is preserved on the `legacy` branch. `main` contains the current premium discovery experience.
+## Branches
+
+- `main` - the current landing experience
+- `minimalist` - the previous single-column minimalist frontend
+- `terminal` - the terminal frontend
+- `legacy` - the original premium landing page
