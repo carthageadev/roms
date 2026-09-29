@@ -4,6 +4,73 @@ import { Link, useNavigate } from "react-router-dom";
 
 export type Preset = MetalFxPreset;
 
+export function scrollToId(id: string) {
+	document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/** Circular mark: the only shader in the sticky index bar. */
+export function MetalMark({ onClick, label = "R" }: { onClick?: () => void; label?: string }) {
+	return (
+		<MetalFx variant="circle" preset="chromatic" theme="dark" strength={1}>
+			<button
+				type="button"
+				onClick={onClick}
+				aria-label="Back to top"
+				className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-semibold tracking-[-0.05em]"
+			>
+				{label}
+			</button>
+		</MetalFx>
+	);
+}
+
+/** Primary action. Reserved for real commitments. */
+export function MetalButton({
+	children,
+	onClick,
+	type = "button",
+	preset = "chromatic",
+	size = "md",
+}: {
+	children: ReactNode;
+	onClick?: () => void;
+	type?: "button" | "submit";
+	preset?: Preset;
+	size?: "sm" | "md";
+}) {
+	const dims = size === "sm" ? "h-9 px-4 text-[12.5px]" : "h-12 px-7 text-[13.5px]";
+	return (
+		<MetalFx preset={preset} theme="dark" strength={1}>
+			<button
+				type={type}
+				onClick={onClick}
+				className={`inline-flex items-center justify-center rounded-full font-medium tracking-[-0.01em] ${dims}`}
+			>
+				{children}
+			</button>
+		</MetalFx>
+	);
+}
+
+/** The artifact wears the metal: a shader rim around the hero cover. */
+export function MetalFrame({
+	children,
+	preset = "gold",
+	radius = 18,
+}: {
+	children: ReactNode;
+	preset?: Preset;
+	radius?: number;
+}) {
+	return (
+		<MetalFx preset={preset} theme="dark" strength={0.85} borderRadius={radius}>
+			<div style={{ borderRadius: radius }} className="overflow-hidden">
+				{children}
+			</div>
+		</MetalFx>
+	);
+}
+
 /** Metal is reserved for the few controls where a choice has weight. */
 export function MetalLink({
 	href,

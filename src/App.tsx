@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { Footer, ZenNav } from "./components/nav";
-import { DATA_SOURCE_HOST, RomIndexProvider, useRomIndex } from "./lib/rom-index-context";
+import { RomIndexProvider } from "./lib/rom-index-context";
 import BrowsePage from "./pages/BrowsePage";
 import CollectionDetailPage from "./pages/CollectionDetailPage";
 import CollectionsPage from "./pages/CollectionsPage";
-import HomePage from "./pages/HomePage";
+import Landing from "./pages/Landing";
 import LibraryPage from "./pages/LibraryPage";
 import PlatformsPage from "./pages/PlatformsPage";
 import RomPage from "./pages/RomPage";
@@ -14,47 +14,40 @@ function useTitleSync(): void {
 	const { pathname } = useLocation();
 	useEffect(() => {
 		const label = pathname === "/" ? "" : pathname.split("/")[1] ?? "";
-		document.title = label ? `${label} / roms.tn` : "roms.tn - the retro preservation index";
+		document.title = label ? `${label} / roms.tn` : "roms.tn - every cartridge, one page";
 	}, [pathname]);
 }
 
 function ScrollToTop() {
-	const { pathname } = useLocation();
+	const { pathname, hash } = useLocation();
 	useEffect(() => {
+		if (hash) return;
 		window.scrollTo({ top: 0, behavior: "auto" });
-	}, [pathname]);
+	}, [pathname, hash]);
 	return null;
-}
-
-/** Persistent footer line: data source label + live index status. */
-function IndexStatus() {
-	const { status, sourceLabel, total } = useRomIndex();
-	return (
-		<p className="fixed inset-x-0 bottom-4 z-30 px-5 text-center font-mono text-[9px] uppercase tracking-[0.16em] text-white/28">
-			{status} - {sourceLabel} - {total ? `${total.toLocaleString()} records` : "no records yet"} - source {DATA_SOURCE_HOST}
-		</p>
-	);
 }
 
 function Shell() {
 	useTitleSync();
+	const { pathname } = useLocation();
+	// The landing ships its own footer, so the global one is for inner pages only.
+	const isLanding = pathname === "/";
 	return (
-		<div className="relative min-h-screen bg-[#060608] font-sans text-white antialiased">
+		<div className="relative min-h-screen bg-[#0a0a0b] font-sans text-[#f5f5f2] antialiased">
 			<ZenNav />
 			<main className="min-h-screen">
 				<Routes>
-					<Route path="/" element={<HomePage />} />
+					<Route path="/" element={<Landing />} />
 					<Route path="/browse" element={<BrowsePage />} />
 					<Route path="/library" element={<LibraryPage />} />
 					<Route path="/collections" element={<CollectionsPage />} />
 					<Route path="/collections/:id" element={<CollectionDetailPage />} />
 					<Route path="/rom/:slugOrId" element={<RomPage />} />
 					<Route path="/platforms" element={<PlatformsPage />} />
-					<Route path="*" element={<HomePage />} />
+					<Route path="*" element={<Landing />} />
 				</Routes>
 			</main>
-			<IndexStatus />
-			<Footer />
+			{!isLanding && <Footer />}
 			<ScrollToTop />
 		</div>
 	);

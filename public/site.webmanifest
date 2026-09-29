@@ -1,7 +1,7 @@
 {
-	"name": "roms.tn - the retro preservation index",
+	"name": "roms.tn - every cartridge, one page",
 	"short_name": "roms.tn",
-	"description": "A quiet index for games worth keeping close. Discover, save and curate retro game records.",
+	"description": "Search the shared ROM index, keep what matters, and build lists, all on one page.",
 	"start_url": "/",
 	"scope": "/",
 	"display": "standalone",
