@@ -9,8 +9,9 @@ The landing is a single screen: hero, live searchable index, and a persistent sh
 The hero shows floating 3D cartridges instead of flat covers. The GLB shell, PBR plastic/paper materials, wrapping carousel math and studio light rig are ported from the `cartridge-studio` project (`D:\Github\cartridge-studio`); its debug panel, inspect mode and favorites UI were left behind.
 
 - The carousel holds popular records (N64, GBA, PSX, SNES), each bound to the live shared index by search, like the canon shelves.
-- Click a side cartridge to centre it; click the centred one to open its record page.
+- Click above or below the centred cartridge to select a neighbor. The detail strip shows its title and platform; drag vertically, scroll, or use the arrows to browse.
 - The 3D code lazy-loads in its own chunk, so first paint stays fast. A static 2D stack shows while it loads.
+- The compressed model's Draco decoder is bundled locally, so loading the hero does not fetch decoder files from a third party.
 - Labels are generated on a canvas by default: zero cover requests, ever.
 
 ### Real box art (optional, hero only)

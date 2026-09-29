@@ -17,15 +17,15 @@
  * measured size instead, so it initializes everywhere.
  *
  * Display-only: the full index search is untouched and still covers every
- * record. Clicking the centred cartridge opens its record page.
+ * record. Selecting a cartridge updates the small title/platform readout;
+ * gallery gestures never navigate away from the landing page.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { createRoot, events, extend, useFrame, useThree } from "@react-three/fiber";
 import type { Catalogue, ReconcilerRoot } from "@react-three/fiber";
 import { Sparkles, useCursor, useGLTF } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import type { RomEntry } from "../lib/roms";
 import { romView } from "../lib/rom-view";
@@ -45,14 +45,15 @@ const BODY_URL = "/cart/diffuse.jpg";
 const NORMAL_URL = "/cart/normal.png";
 const ROUGH_URL = "/cart/roughness.png";
 const FALLBACK_COVER = "/cart/no-image.svg";
+const DRACO_URL = "/cart/draco/";
 
 const TARGET_HEIGHT = 2.8;
 const LERP_SPEED = 5;
 const FACE_ROTATION = Math.PI / 2;
-const GAP = 2.15;
+const GAP = 2.1;
 const STEP = 1.0;
-const DEPTH_STEP = 0.55;
-const CULL_RADIUS = 3;
+const DEPTH_STEP = 0.4;
+const CULL_RADIUS = 1;
 
 /* Light rig defaults, copied from the studio's tuned preset. */
 const RIG = {
@@ -65,7 +66,6 @@ const RIG = {
 	accentPos: [-20, 1.1, -20] as const,
 	accentColor: "#f9a8d4",
 	exposure: 1.15,
-	bloom: 0.12,
 } as const;
 
 function wrappedOffset(index: number, selected: number, count: number): number {
@@ -120,7 +120,7 @@ function useProbedTexture(url: string): THREE.Texture {
 }
 
 function Cartridge3D({ labelUrl }: { labelUrl: string }) {
-	const gltf = useGLTF(MODEL_URL);
+	const gltf = useGLTF(MODEL_URL, DRACO_URL);
 	const bodyBase = useMemo(() => sharedTexture(BODY_URL, true), []);
 	const bodyNormal = useMemo(() => sharedTexture(NORMAL_URL, false), []);
 	const bodyRoughness = useMemo(() => sharedTexture(ROUGH_URL, false), []);
@@ -180,11 +180,9 @@ interface SlotProps {
 	count: number;
 	selected: number;
 	reducedMotion: boolean;
-	onSelect: (index: number) => void;
-	onOpen: (rom: RomEntry) => void;
 }
 
-function CartridgeSlot({ item, index, count, selected, reducedMotion, onSelect, onOpen }: SlotProps) {
+function CartridgeSlot({ item, index, count, selected, reducedMotion }: SlotProps) {
 	const ref = useRef<THREE.Group>(null!);
 	const [hovered, setHovered] = useState(false);
 	const isSelected = index === selected;
@@ -194,7 +192,7 @@ function CartridgeSlot({ item, index, count, selected, reducedMotion, onSelect, 
 
 	const target = useMemo(() => {
 		const offset = wrappedOffset(index, selected, count);
-		if (offset === 0) return { y: 0.2, z: 1.9, rotX: 0, rotY: 0, scale: 0.82 };
+		if (offset === 0) return { y: 0.15, z: 2.2, rotX: 0, rotY: 0, scale: 1.08 };
 		const sign = Math.sign(offset);
 		const abs = Math.abs(offset);
 		return {
@@ -202,7 +200,7 @@ function CartridgeSlot({ item, index, count, selected, reducedMotion, onSelect, 
 			z: -0.9 - (abs - 1) * DEPTH_STEP,
 			rotX: sign * 0.32,
 			rotY: -sign * 0.28,
-			scale: Math.max(0.5, 0.68 - (abs - 1) * 0.07),
+			scale: Math.max(0.5, 0.62 - (abs - 1) * 0.07),
 		};
 	}, [index, selected, count]);
 
@@ -225,11 +223,6 @@ function CartridgeSlot({ item, index, count, selected, reducedMotion, onSelect, 
 	return (
 		<group
 			ref={ref}
-			onPointerDown={(e) => {
-				e.stopPropagation();
-				if (isSelected) onOpen(item.rom);
-				else onSelect(index);
-			}}
 			onPointerOver={(e) => {
 				e.stopPropagation();
 				setHovered(true);
@@ -289,11 +282,9 @@ interface SceneProps {
 	items: HeroCartridge[];
 	selected: number;
 	reducedMotion: boolean;
-	onSelect: (index: number) => void;
-	onOpen: (rom: RomEntry) => void;
 }
 
-function HeroScene({ items, selected, reducedMotion, onSelect, onOpen }: SceneProps) {
+function HeroScene({ items, selected, reducedMotion }: SceneProps) {
 	const count = items.length;
 	return (
 		<>
@@ -309,15 +300,9 @@ function HeroScene({ items, selected, reducedMotion, onSelect, onOpen }: ScenePr
 						count={count}
 						selected={selected}
 						reducedMotion={reducedMotion}
-						onSelect={onSelect}
-						onOpen={onOpen}
 					/>
 				) : null,
 			)}
-			<EffectComposer multisampling={4}>
-				<Bloom intensity={RIG.bloom} luminanceThreshold={0.72} luminanceSmoothing={0.35} mipmapBlur radius={0.86} />
-				<Vignette eskil={false} offset={0.18} darkness={0.4} />
-			</EffectComposer>
 		</>
 	);
 }
@@ -329,12 +314,14 @@ function measure(el: HTMLElement | null): { width: number; height: number } {
 }
 
 export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
-	const navigate = useNavigate();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const rootRef = useRef<ReconcilerRoot<HTMLCanvasElement> | null>(null);
+	const rootCanvasRef = useRef<HTMLCanvasElement | null>(null);
+	const rootDisposeTimer = useRef<number | null>(null);
+	const rootConfigured = useRef(false);
 	const [selected, setSelected] = useState(0);
-	const lastInteract = useRef(0);
+	const drag = useRef<{ pointerId: number; startY: number; lastY: number; carried: number } | null>(null);
 	const reducedMotion = useMemo(
 		() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
 		[],
@@ -342,52 +329,100 @@ export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
 
 	const count = items.length;
 
-	const handleSelect = useMemo(
-		() => (index: number) => {
-			lastInteract.current = Date.now();
-			setSelected(index);
-		},
-		[],
-	);
-	const handleOpen = useMemo(
-		() => (rom: RomEntry) => {
-			lastInteract.current = Date.now();
-			navigate(`/rom/${romView(rom).slug}`);
-		},
-		[navigate],
-	);
+	const moveBy = useCallback((amount: number) => {
+		if (!count || amount === 0) return;
+		setSelected((current) => ((current + amount) % count + count) % count);
+	}, [count]);
 
-	// Slow auto-advance, paused for a while after the visitor takes over.
+	// Wheel over the gallery advances the vertical shelf without scrolling the page.
 	useEffect(() => {
-		if (reducedMotion || count < 2) return;
-		const timer = window.setInterval(() => {
-			if (Date.now() - lastInteract.current > 10000) {
-				setSelected((value) => (value + 1) % count);
-			}
-		}, 4500);
-		return () => window.clearInterval(timer);
-	}, [count, reducedMotion]);
+		const element = containerRef.current;
+		if (!element) return;
+		let accumulated = 0;
+		const onWheel = (event: WheelEvent) => {
+			event.preventDefault();
+			accumulated += event.deltaY;
+			if (Math.abs(accumulated) < 55) return;
+			const steps = Math.sign(accumulated) * Math.min(3, Math.floor(Math.abs(accumulated) / 55));
+			accumulated -= steps * 55;
+			moveBy(steps);
+		};
+		element.addEventListener("wheel", onWheel, { passive: false });
+		return () => element.removeEventListener("wheel", onWheel);
+	}, [moveBy]);
+
+	const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+		if (event.pointerType === "mouse" && event.button !== 0) return;
+		event.currentTarget.setPointerCapture(event.pointerId);
+		drag.current = { pointerId: event.pointerId, startY: event.clientY, lastY: event.clientY, carried: 0 };
+	};
+
+	const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+		const state = drag.current;
+		if (!state || state.pointerId !== event.pointerId) return;
+		const delta = state.lastY - event.clientY;
+		state.lastY = event.clientY;
+		state.carried += delta;
+		const steps = Math.trunc(state.carried / 56);
+		if (steps) {
+			state.carried -= steps * 56;
+			moveBy(steps);
+		}
+	};
+
+	const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+		const state = drag.current;
+		if (!state || state.pointerId !== event.pointerId) return;
+		const travel = state.startY - event.clientY;
+		if (Math.abs(travel) < 10) {
+			const rect = event.currentTarget.getBoundingClientRect();
+			const relativeY = event.clientY - rect.top - rect.height / 2;
+			const offset = Math.max(-1, Math.min(1, Math.round(relativeY / (rect.height * 0.34))));
+			if (offset) moveBy(offset);
+		}
+		drag.current = null;
+	};
+
+	const selectedItem = items[selected] ?? items[0];
+	const selectedView = selectedItem ? romView(selectedItem.rom) : null;
 
 	// Create the WebGL root once with an explicitly measured size.
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		const container = containerRef.current;
 		if (!canvas || !container || count === 0) return;
-		const root = createRoot(canvas);
-		rootRef.current = root;
+		if (rootDisposeTimer.current !== null) {
+			window.clearTimeout(rootDisposeTimer.current);
+			rootDisposeTimer.current = null;
+		}
+		if (rootRef.current && rootCanvasRef.current !== canvas) {
+			rootRef.current.unmount();
+			rootRef.current = null;
+			rootCanvasRef.current = null;
+			rootConfigured.current = false;
+		}
+		let root = rootRef.current;
+		if (!root) {
+			root = createRoot(canvas);
+			rootRef.current = root;
+			rootCanvasRef.current = canvas;
+			rootConfigured.current = false;
+		}
 		const box = measure(container);
-		void root
-			.configure({
+		if (!rootConfigured.current) {
+			rootConfigured.current = true;
+			void root.configure({
 				events,
 				shadows: true,
 				dpr: [1, 1.5],
-				camera: { position: [0, 1.7, 8.4], fov: 30, near: 0.1, far: 60 },
+				camera: { position: [0, 1.7, 8.4], fov: 36, near: 0.1, far: 60 },
 				size: { width: box.width, height: box.height, top: 0, left: 0 },
 				gl: { antialias: true, alpha: true, powerPreference: "high-performance", stencil: false },
 			})
-			.catch(() => {
-				// WebGL unavailable: the 2D fallback already covers this case.
-			});
+				.catch(() => {
+					// WebGL unavailable: the 2D fallback already covers this case.
+				});
+		}
 		const onResize = () => {
 			const next = measure(container);
 			void root.configure({ size: { width: next.width, height: next.height, top: 0, left: 0 } }).catch(() => {});
@@ -395,8 +430,16 @@ export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
 		window.addEventListener("resize", onResize);
 		return () => {
 			window.removeEventListener("resize", onResize);
-			rootRef.current = null;
-			root.unmount();
+			// React StrictMode replays effects once in development. Defer unmount
+			// by one task so its immediate remount can reuse the same WebGL root.
+			rootDisposeTimer.current = window.setTimeout(() => {
+				rootDisposeTimer.current = null;
+				if (rootRef.current !== root) return;
+				rootRef.current = null;
+				rootCanvasRef.current = null;
+				rootConfigured.current = false;
+				root.unmount();
+			}, 0);
 		};
 	}, [count === 0]);
 
@@ -405,17 +448,59 @@ export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
 		const root = rootRef.current;
 		if (!root || count === 0) return;
 		root.render(
-			<HeroScene items={items} selected={selected} reducedMotion={reducedMotion} onSelect={handleSelect} onOpen={handleOpen} />,
+			<HeroScene items={items} selected={selected} reducedMotion={reducedMotion} />,
 		);
 	});
 
 	if (count === 0) return null;
 
 	return (
-		<div ref={containerRef} className="relative h-full w-full">
-			<canvas ref={canvasRef} className="block h-full w-full" />
+		<div className="flex h-full w-full flex-col">
+			<div
+				ref={containerRef}
+				className="relative min-h-0 flex-1 cursor-grab touch-none active:cursor-grabbing"
+				aria-label="Popular game cartridges. Click above or below the centre, drag vertically, or scroll to change games."
+				tabIndex={0}
+				onPointerDown={onPointerDown}
+				onPointerMove={onPointerMove}
+				onPointerUp={onPointerUp}
+				onPointerCancel={() => { drag.current = null; }}
+				onKeyDown={(event) => {
+					if (event.key === "ArrowUp") { event.preventDefault(); moveBy(-1); }
+					if (event.key === "ArrowDown") { event.preventDefault(); moveBy(1); }
+				}}
+			>
+				<canvas ref={canvasRef} className="block h-full w-full" />
+			</div>
+			{selectedView && (
+				<div className="mx-auto mt-1 flex w-full max-w-[480px] items-center gap-3 rounded-2xl border border-white/12 bg-[#101013]/85 px-4 py-3 shadow-[0_18px_55px_rgba(0,0,0,.35)] backdrop-blur-xl sm:px-5">
+					<button
+						type="button"
+						aria-label="Previous cartridge"
+						onClick={() => moveBy(-1)}
+						className="grid size-9 shrink-0 place-items-center rounded-full border border-white/12 text-white/70 transition hover:border-white/30 hover:text-white"
+					>
+						↑
+					</button>
+					<div className="min-w-0 flex-1">
+						<p className="truncate text-[14px] font-medium tracking-[-0.02em] text-white sm:text-[15px]">{selectedView.title}</p>
+						<p className="faint mt-1 truncate font-mono text-[9px] tracking-[0.13em] uppercase sm:text-[10px]">
+							{selectedView.platform}
+						</p>
+					</div>
+					<span className="faint hidden font-mono text-[9px] tracking-[0.12em] uppercase md:block">Drag / scroll</span>
+					<button
+						type="button"
+						aria-label="Next cartridge"
+						onClick={() => moveBy(1)}
+						className="grid size-9 shrink-0 place-items-center rounded-full border border-white/12 text-white/70 transition hover:border-white/30 hover:text-white"
+					>
+						↓
+					</button>
+				</div>
+			)}
 		</div>
 	);
 }
 
-useGLTF.preload(MODEL_URL);
+useGLTF.preload(MODEL_URL, DRACO_URL);
