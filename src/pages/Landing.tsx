@@ -450,7 +450,7 @@ export default function Landing() {
 	return (
 		<div id="top">
 			{/* HERO */}
-			<header className="relative overflow-hidden">
+			<header className="relative">
 				<div
 					className="orb"
 					aria-hidden
@@ -463,7 +463,7 @@ export default function Landing() {
 							"conic-gradient(from 210deg, rgba(175,190,220,.18), transparent 44%, rgba(220,195,165,.12), transparent 74%)",
 					}}
 				/>
-				<div className="wrap relative grid min-h-[92svh] items-center gap-14 py-20 lg:grid-cols-[1.08fr_.92fr]">
+				<div className="wrap relative grid min-h-[92svh] items-center gap-8 py-12 lg:grid-cols-[1fr_1fr] lg:gap-10 lg:py-8">
 					<div>
 						<p className="rise faint font-mono text-[11px] tracking-[0.3em] uppercase">roms.tn</p>
 						<h1
@@ -508,7 +508,14 @@ export default function Landing() {
 					</div>
 
 					{/* floating 3D cartridges: popular records, resolved live */}
-					<div id="hero-3d" className="rise relative mx-auto h-[420px] w-full max-w-[460px] lg:h-[500px]">
+					<div
+						id="hero-3d"
+						className="rise relative mx-auto h-[580px] w-full max-w-[680px] sm:h-[640px] lg:h-[min(760px,86svh)]"
+					>
+						<div
+							aria-hidden
+							className="pointer-events-none absolute inset-[8%] rounded-[48%] bg-[radial-gradient(ellipse_at_center,rgba(185,198,225,0.12),rgba(117,132,167,0.045)_42%,transparent_72%)] blur-2xl"
+						/>
 						{heroItems.length > 0 ? (
 							<Suspense
 								fallback={
@@ -522,9 +529,6 @@ export default function Landing() {
 								{loading ? "Casting the hero shelf..." : "Hero shelf unavailable."}
 							</p>
 						)}
-						<p className="faint pointer-events-none absolute inset-x-0 bottom-1 text-center font-mono text-[10px] tracking-[0.18em] uppercase">
-							N64 - GBA - PSX - SNES
-						</p>
 					</div>
 				</div>
 			</header>
