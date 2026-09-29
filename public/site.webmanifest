@@ -10,7 +10,7 @@
 	"categories": ["games", "utilities"],
 	"icons": [
 		{
-			"src": "/icon.svg",
+			"src": "/mark.svg",
 			"sizes": "any",
 			"type": "image/svg+xml",
 			"purpose": "any"
