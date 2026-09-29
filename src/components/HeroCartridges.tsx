@@ -50,9 +50,9 @@ const DRACO_URL = "/cart/draco/";
 const TARGET_HEIGHT = 2.8;
 const LERP_SPEED = 5;
 const FACE_ROTATION = Math.PI / 2;
-const GAP = 2.1;
+const GAP = 2.15;
 const STEP = 1.0;
-const DEPTH_STEP = 0.4;
+const DEPTH_STEP = 0.55;
 const CULL_RADIUS = 1;
 
 /* Light rig defaults, copied from the studio's tuned preset. */
@@ -192,7 +192,7 @@ function CartridgeSlot({ item, index, count, selected, reducedMotion }: SlotProp
 
 	const target = useMemo(() => {
 		const offset = wrappedOffset(index, selected, count);
-		if (offset === 0) return { y: 0.15, z: 2.2, rotX: 0, rotY: 0, scale: 1.08 };
+		if (offset === 0) return { y: 0.2, z: 1.9, rotX: 0, rotY: 0, scale: 0.82 };
 		const sign = Math.sign(offset);
 		const abs = Math.abs(offset);
 		return {
@@ -200,7 +200,7 @@ function CartridgeSlot({ item, index, count, selected, reducedMotion }: SlotProp
 			z: -0.9 - (abs - 1) * DEPTH_STEP,
 			rotX: sign * 0.32,
 			rotY: -sign * 0.28,
-			scale: Math.max(0.5, 0.62 - (abs - 1) * 0.07),
+			scale: Math.max(0.5, 0.68 - (abs - 1) * 0.07),
 		};
 	}, [index, selected, count]);
 
@@ -237,11 +237,26 @@ function CartridgeSlot({ item, index, count, selected, reducedMotion }: SlotProp
 function Tonemap() {
 	const gl = useThree((s) => s.gl);
 	const camera = useThree((s) => s.camera);
+	const size = useThree((s) => s.size);
 	useEffect(() => {
 		gl.toneMapping = THREE.ACESFilmicToneMapping;
 		gl.toneMappingExposure = RIG.exposure;
-		camera.lookAt(0, 1.0, 0);
-	}, [gl, camera]);
+		if (camera instanceof THREE.PerspectiveCamera) {
+			// The hero gets only one side of the page on desktop. Preserve the
+			// studio's wide-screen horizontal framing as this canvas narrows,
+			// rather than letting the cartridges balloon and overlap.
+			const aspect = size.width / Math.max(size.height, 1);
+			const referenceAspect = 1.5;
+			const baseFov = THREE.MathUtils.degToRad(32);
+			camera.fov = THREE.MathUtils.clamp(
+				THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(baseFov / 2) * referenceAspect / aspect)),
+				32,
+				64,
+			);
+			camera.updateProjectionMatrix();
+		}
+		camera.lookAt(0, 1.15, 0);
+	}, [gl, camera, size.width, size.height]);
 	return null;
 }
 
@@ -415,7 +430,7 @@ export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
 				events,
 				shadows: true,
 				dpr: [1, 1.5],
-				camera: { position: [0, 1.7, 8.4], fov: 36, near: 0.1, far: 60 },
+				camera: { position: [0, 2.5, 9], fov: 32, near: 0.1, far: 80 },
 				size: { width: box.width, height: box.height, top: 0, left: 0 },
 				gl: { antialias: true, alpha: true, powerPreference: "high-performance", stencil: false },
 			})

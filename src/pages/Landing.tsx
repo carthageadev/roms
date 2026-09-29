@@ -463,11 +463,11 @@ export default function Landing() {
 							"conic-gradient(from 210deg, rgba(175,190,220,.18), transparent 44%, rgba(220,195,165,.12), transparent 74%)",
 					}}
 				/>
-				<div className="wrap relative grid min-h-[92svh] items-center gap-8 py-12 lg:grid-cols-[1fr_1fr] lg:gap-10 lg:py-8">
+				<div className="wrap relative grid min-h-[92svh] items-center gap-8 py-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 lg:py-8">
 					<div>
 						<p className="rise faint font-mono text-[11px] tracking-[0.3em] uppercase">roms.tn</p>
 						<h1
-							className="rise mt-6 text-[clamp(3.2rem,9vw,7rem)] leading-[0.86] font-semibold tracking-[-0.07em]"
+							className="rise mt-6 text-[clamp(2.8rem,4.6vw,4.6rem)] leading-[0.9] font-semibold tracking-[-0.07em]"
 							style={{ animationDelay: "60ms" }}
 						>
 							<span className="chrome">Every cartridge,</span>
