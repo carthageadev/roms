@@ -25,7 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { createRoot, events, extend, useFrame, useThree } from "@react-three/fiber";
 import type { Catalogue, ReconcilerRoot } from "@react-three/fiber";
-import { Sparkles, useCursor, useGLTF } from "@react-three/drei";
+import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { RomEntry } from "../lib/roms";
 import { romView } from "../lib/rom-view";
@@ -41,9 +41,9 @@ export interface HeroCartridge {
 }
 
 const MODEL_URL = "/cart/model.glb";
-const BODY_URL = "/cart/diffuse.jpg";
-const NORMAL_URL = "/cart/normal.png";
-const ROUGH_URL = "/cart/roughness.png";
+const BODY_URL = "/cart/fast/diffuse.webp";
+const NORMAL_URL = "/cart/fast/normal.webp";
+const ROUGH_URL = "/cart/fast/roughness.webp";
 const FALLBACK_COVER = "/cart/no-image.svg";
 const DRACO_URL = "/cart/draco/";
 
@@ -87,7 +87,7 @@ function sharedTexture(url: string, srgb: boolean): THREE.Texture {
 		texture = loader.load(url);
 		texture.flipY = false;
 		if (srgb) texture.colorSpace = THREE.SRGBColorSpace;
-		texture.anisotropy = 8;
+		texture.anisotropy = 4;
 		texture.needsUpdate = true;
 		texCache.set(url, texture);
 	}
@@ -155,8 +155,6 @@ function Cartridge3D({ labelUrl }: { labelUrl: string }) {
 					envMapIntensity: 0.45,
 					color: new THREE.Color(0xffffff),
 				});
-				mesh.castShadow = true;
-				mesh.receiveShadow = true;
 			} else if (mesh.name === "boxart") {
 				mesh.material = new THREE.MeshStandardMaterial({
 					map: gameArt,
@@ -165,8 +163,6 @@ function Cartridge3D({ labelUrl }: { labelUrl: string }) {
 					envMapIntensity: 1.22,
 					color: new THREE.Color(0xffffff),
 				});
-				mesh.castShadow = true;
-				mesh.receiveShadow = true;
 			}
 		});
 	}, [clone, bodyBase, bodyNormal, bodyRoughness, gameArt]);
@@ -184,9 +180,7 @@ interface SlotProps {
 
 function CartridgeSlot({ item, index, count, selected, reducedMotion }: SlotProps) {
 	const ref = useRef<THREE.Group>(null!);
-	const [hovered, setHovered] = useState(false);
 	const isSelected = index === selected;
-	useCursor(hovered);
 
 	const labelUrl = useMemo(() => item.artUrl ?? labelDataUrl(romView(item.rom)), [item]);
 
@@ -210,28 +204,15 @@ function CartridgeSlot({ item, index, count, selected, reducedMotion }: SlotProp
 		ref.current.position.z = l(ref.current.position.z, target.z, LERP_SPEED * delta);
 		let ty = target.y;
 		if (isSelected && !reducedMotion) ty += Math.sin(state.clock.elapsedTime * 1.85) * 0.04;
-		if (hovered && !isSelected) ty -= Math.sign(target.y) * 0.16;
 		ref.current.position.y = l(ref.current.position.y, ty, LERP_SPEED * delta);
-		const rotY = (hovered && !isSelected ? target.rotY * 0.6 : target.rotY) + FACE_ROTATION;
-		const rotX = hovered && !isSelected ? target.rotX * 0.6 : target.rotX;
+		const rotY = target.rotY + FACE_ROTATION;
+		const rotX = target.rotX;
 		ref.current.rotation.y = l(ref.current.rotation.y, rotY, LERP_SPEED * delta);
 		ref.current.rotation.x = l(ref.current.rotation.x, rotX, LERP_SPEED * delta);
-		const ts = hovered && !isSelected ? target.scale * 1.05 : target.scale;
-		ref.current.scale.setScalar(l(ref.current.scale.x, ts, LERP_SPEED * delta));
+		ref.current.scale.setScalar(l(ref.current.scale.x, target.scale, LERP_SPEED * delta));
 	});
 
-	return (
-		<group
-			ref={ref}
-			onPointerOver={(e) => {
-				e.stopPropagation();
-				setHovered(true);
-			}}
-			onPointerOut={() => setHovered(false)}
-		>
-			<Cartridge3D labelUrl={labelUrl} />
-		</group>
-	);
+	return <group ref={ref}><Cartridge3D labelUrl={labelUrl} /></group>;
 }
 
 function Tonemap() {
@@ -305,7 +286,6 @@ function HeroScene({ items, selected, reducedMotion }: SceneProps) {
 		<>
 			<Tonemap />
 			<Rig />
-			<Sparkles count={24} scale={[10, 8, 6]} size={1.4} speed={0.12} opacity={0.35} color="#a5b4fc" />
 			{items.map((item, i) =>
 				Math.abs(wrappedOffset(i, selected, count)) <= CULL_RADIUS ? (
 					<CartridgeSlot
@@ -336,7 +316,7 @@ export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
 	const rootDisposeTimer = useRef<number | null>(null);
 	const rootConfigured = useRef(false);
 	const [selected, setSelected] = useState(0);
-	const drag = useRef<{ pointerId: number; startY: number; lastY: number; carried: number } | null>(null);
+	const drag = useRef<{ pointerId: number; lastY: number; carried: number } | null>(null);
 	const reducedMotion = useMemo(
 		() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
 		[],
@@ -369,7 +349,7 @@ export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
 	const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
 		if (event.pointerType === "mouse" && event.button !== 0) return;
 		event.currentTarget.setPointerCapture(event.pointerId);
-		drag.current = { pointerId: event.pointerId, startY: event.clientY, lastY: event.clientY, carried: 0 };
+		drag.current = { pointerId: event.pointerId, lastY: event.clientY, carried: 0 };
 	};
 
 	const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -386,16 +366,7 @@ export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
 	};
 
 	const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-		const state = drag.current;
-		if (!state || state.pointerId !== event.pointerId) return;
-		const travel = state.startY - event.clientY;
-		if (Math.abs(travel) < 10) {
-			const rect = event.currentTarget.getBoundingClientRect();
-			const relativeY = event.clientY - rect.top - rect.height / 2;
-			const offset = Math.max(-1, Math.min(1, Math.round(relativeY / (rect.height * 0.34))));
-			if (offset) moveBy(offset);
-		}
-		drag.current = null;
+		if (drag.current?.pointerId === event.pointerId) drag.current = null;
 	};
 
 	const selectedItem = items[selected] ?? items[0];
@@ -428,8 +399,7 @@ export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
 			rootConfigured.current = true;
 			void root.configure({
 				events,
-				shadows: true,
-				dpr: [1, 1.5],
+				dpr: [1, 1.25],
 				camera: { position: [0, 2.5, 9], fov: 32, near: 0.1, far: 80 },
 				size: { width: box.width, height: box.height, top: 0, left: 0 },
 				gl: { antialias: true, alpha: true, powerPreference: "high-performance", stencil: false },
@@ -473,45 +443,25 @@ export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
 		<div className="flex h-full w-full flex-col">
 			<div
 				ref={containerRef}
+				role="region"
 				className="relative min-h-0 flex-1 cursor-grab touch-none active:cursor-grabbing"
-				aria-label="Popular game cartridges. Click above or below the centre, drag vertically, or scroll to change games."
-				tabIndex={0}
+				aria-label="Popular game cartridges. Drag vertically or scroll to change games."
 				onPointerDown={onPointerDown}
 				onPointerMove={onPointerMove}
 				onPointerUp={onPointerUp}
 				onPointerCancel={() => { drag.current = null; }}
-				onKeyDown={(event) => {
-					if (event.key === "ArrowUp") { event.preventDefault(); moveBy(-1); }
-					if (event.key === "ArrowDown") { event.preventDefault(); moveBy(1); }
-				}}
 			>
 				<canvas ref={canvasRef} className="block h-full w-full" />
 			</div>
 			{selectedView && (
-				<div className="mx-auto mt-1 flex w-full max-w-[480px] items-center gap-3 rounded-2xl border border-white/12 bg-[#101013]/85 px-4 py-3 shadow-[0_18px_55px_rgba(0,0,0,.35)] backdrop-blur-xl sm:px-5">
-					<button
-						type="button"
-						aria-label="Previous cartridge"
-						onClick={() => moveBy(-1)}
-						className="grid size-9 shrink-0 place-items-center rounded-full border border-white/12 text-white/70 transition hover:border-white/30 hover:text-white"
-					>
-						↑
-					</button>
+				<div aria-live="polite" className="mx-auto mt-1 flex w-full max-w-[480px] items-center gap-3 rounded-2xl border border-white/12 bg-[#101013]/85 px-4 py-3 shadow-[0_18px_55px_rgba(0,0,0,.35)] backdrop-blur-xl sm:px-5">
 					<div className="min-w-0 flex-1">
 						<p className="truncate text-[14px] font-medium tracking-[-0.02em] text-white sm:text-[15px]">{selectedView.title}</p>
 						<p className="faint mt-1 truncate font-mono text-[9px] tracking-[0.13em] uppercase sm:text-[10px]">
 							{selectedView.platform}
 						</p>
 					</div>
-					<span className="faint hidden font-mono text-[9px] tracking-[0.12em] uppercase md:block">Drag / scroll</span>
-					<button
-						type="button"
-						aria-label="Next cartridge"
-						onClick={() => moveBy(1)}
-						className="grid size-9 shrink-0 place-items-center rounded-full border border-white/12 text-white/70 transition hover:border-white/30 hover:text-white"
-					>
-						↓
-					</button>
+					<span className="faint shrink-0 font-mono text-[9px] tracking-[0.12em] uppercase">Drag / scroll</span>
 				</div>
 			)}
 		</div>
