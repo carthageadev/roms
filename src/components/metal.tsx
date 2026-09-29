@@ -9,16 +9,20 @@ export function scrollToId(id: string) {
 }
 
 /** Circular mark: the only shader in the sticky index bar. */
-export function MetalMark({ onClick, label = "R" }: { onClick?: () => void; label?: string }) {
+export function MetalMark({ onClick, label }: { onClick?: () => void; label?: string }) {
 	return (
 		<MetalFx variant="circle" preset="chromatic" theme="dark" strength={1}>
 			<button
 				type="button"
 				onClick={onClick}
 				aria-label="Back to top"
-				className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-semibold tracking-[-0.05em]"
+				className="flex h-10 w-10 items-center justify-center rounded-full"
 			>
-				{label}
+				{label ? (
+					<span className="text-[13px] font-semibold tracking-[-0.05em]">{label}</span>
+				) : (
+					<img alt="" aria-hidden="true" className="h-6 w-6" height={24} src="/icon.svg" width={24} />
+				)}
 			</button>
 		</MetalFx>
 	);
