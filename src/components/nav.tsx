@@ -29,14 +29,14 @@ export function ZenNav() {
 			<Link
 				to="/"
 				aria-label="roms.tn home"
-				className="group fixed left-5 top-5 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.22] bg-[#0a0a0d]/75 text-white backdrop-blur-xl transition-colors hover:bg-white hover:text-black sm:left-7 sm:top-7"
+				className="group fixed left-5 top-5 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.22] bg-[#0a0a0b]/75 backdrop-blur-xl transition-colors hover:bg-[#ffb000] hover:border-[#ffb000] sm:left-7 sm:top-7"
 			>
 				<img
 					alt=""
 					aria-hidden="true"
-					className="h-5 w-5 transition-[filter] duration-150 group-hover:brightness-0"
+					className="h-5 w-5 transition-transform duration-150 group-hover:scale-105"
 					height={20}
-					src="/icon.png"
+					src="/icon.svg"
 					width={20}
 				/>
 			</Link>
