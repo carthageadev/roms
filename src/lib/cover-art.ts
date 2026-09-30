@@ -1,19 +1,18 @@
 /**
  * Optional real box art for the hero cartridges only.
  *
- * The cartridge-studio project resolves covers through ScreenScraper. That
- * flow needs dev credentials and a server-side proxy (keys must never ship
- * in the bundle, and browsers cannot call the API directly from every
- * network). This static site has neither, so the rule is strict:
+ * The default design uses locally generated paper labels. ScreenScraper is
+ * an explicit optional integration, never a background dependency:
  *
- * - Without the user's own `VITE_SCREENSCRAPER_*` keys, this module performs
- *   zero network requests and every hero cartridge wears a generated label.
- * - With keys, it resolves covers for the hero list only, one request at a
+ * - Without `VITE_ENABLE_HERO_COVER_ART=true`, it performs zero requests and
+ *   the default build strips the remote resolver and dev configuration.
+ * - When opted in with dev configuration, it resolves hero covers one request at a
  *   time with breathing room between calls, and persists results in
  *   localStorage so a title is never looked up twice.
  *
  * Copy `.env.example` to `.env.local` (gitignored, never committed) and fill
- * in your own ScreenScraper dev credentials to enable it.
+ * in your own ScreenScraper dev configuration to enable it. VITE_ values are
+ * public client configuration, so never use private account credentials.
  */
 
 const API = "https://www.screenscraper.fr/api2";
@@ -129,6 +128,9 @@ export async function resolveHeroArt(
 	const keys = [...new Set(titles.map((t) => t.trim()).filter(Boolean))];
 	for (const key of keys) out.set(key, null);
 	if (keys.length === 0) return out;
+	// Existing local credentials must not silently enable API traffic. This
+	// compile-time guard also strips that resolver from the default bundle.
+	if (import.meta.env.VITE_ENABLE_HERO_COVER_ART !== "true") return out;
 
 	const cache = readCache();
 	const missing = keys.filter((key) => !(key in cache));

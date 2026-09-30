@@ -1,34 +1,44 @@
 /**
- * The landing shelf.
- *
- * Ported from the arena.ai build: one screen holds the hero, the searchable
- * index, and a persistent shelf of what you kept and the lists you made. The
- * server actions and Postgres from that build are replaced by the real shared
- * index (`lib/roms`) and the localStorage store (`lib/library-store`), so the
- * data on screen is always the live host catalogue.
+ * A quiet home for the archive: cartridge gallery, live searchable index,
+ * and a personal shelf. Records come from the shared index; saves and lists
+ * stay in localStorage. Browsing and curation need no account or route change.
  */
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	lazy,
+	Suspense,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { Link } from "react-router-dom";
-import { MetalButton, MetalMark, scrollToId } from "../components/metal";
-import HeroCartridgesFallback from "../components/HeroCartridgesFallback";
 import type { HeroCartridge } from "../components/HeroCartridges";
+import HeroCartridgesFallback from "../components/HeroCartridgesFallback";
+import { MetalMark, scrollToId } from "../components/metal";
 import { resolveHeroArt } from "../lib/cover-art";
 import { resolveHero } from "../lib/hero";
 
-const HeroCartridges = lazy(() => import("../components/HeroCartridges"));
+const loadHero = () => import("../components/HeroCartridges");
+const HeroCartridges = lazy(loadHero);
+
 import { ShelfCover } from "../components/ui";
-import { CANON_TEMPLATES, resolveCanon, type ResolvedCanonItem } from "../lib/canon";
+import {
+	CANON_TEMPLATES,
+	type ResolvedCanonItem,
+	resolveCanon,
+} from "../lib/canon";
 import {
 	createList,
 	deleteList,
 	moveListItem,
+	NAME_MAX,
 	toggleListItem,
 	toggleSave,
-	NAME_MAX,
 } from "../lib/library-store";
 import { DATA_SOURCE_HOST, useRomIndex } from "../lib/rom-index-context";
-import { formatSizeMb, romView, type RomView } from "../lib/rom-view";
+import { formatSizeMb, type RomView, romView } from "../lib/rom-view";
 import { searchRoms } from "../lib/roms";
 import { useLibraryState } from "../lib/use-library";
 
@@ -53,7 +63,7 @@ interface ShelfList {
 }
 
 export default function Landing() {
-	const { view, total, loading, error, status, sourceLabel } = useRomIndex();
+	const { view, total, loading, error } = useRomIndex();
 	const { saves, collections } = useLibraryState();
 
 	const [query, setQuery] = useState("");
@@ -67,6 +77,44 @@ export default function Landing() {
 	const [listName, setListName] = useState("");
 	const [visible, setVisible] = useState(PAGE);
 	const searchRef = useRef<HTMLInputElement>(null);
+	const sheetRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		void loadHero();
+	}, []);
+
+	useEffect(() => {
+		if (!sheet || !sheetRef.current) return;
+		const panel = sheetRef.current;
+		const previous =
+			document.activeElement instanceof HTMLElement
+				? document.activeElement
+				: null;
+		panel
+			.querySelector<HTMLButtonElement>('button[aria-label="Close"]')
+			?.focus();
+		const onTab = (event: KeyboardEvent) => {
+			if (event.key !== "Tab") return;
+			const targets = [
+				...panel.querySelectorAll<HTMLElement>(
+					'button:not(:disabled), input, select, a[href], [tabindex="0"]',
+				),
+			].filter((element) => element.getClientRects().length > 0);
+			const first = targets[0];
+			const last = targets[targets.length - 1];
+			if (event.shiftKey && document.activeElement === first) {
+				event.preventDefault();
+				last?.focus();
+			} else if (!event.shiftKey && document.activeElement === last) {
+				event.preventDefault();
+				first?.focus();
+			}
+		};
+		panel.addEventListener("keydown", onTab);
+		return () => {
+			panel.removeEventListener("keydown", onTab);
+			previous?.focus({ preventScroll: true });
+		};
+	}, [sheet]);
 
 	// Debounce: the shared index is large, so never search on every keystroke.
 	useEffect(() => {
@@ -91,7 +139,11 @@ export default function Landing() {
 
 	const consoles = useMemo(() => {
 		const counts = new Map<string, number>();
-		for (const rom of view.roms) counts.set(rom.console || "Unknown", (counts.get(rom.console || "Unknown") ?? 0) + 1);
+		for (const rom of view.roms)
+			counts.set(
+				rom.console || "Unknown",
+				(counts.get(rom.console || "Unknown") ?? 0) + 1,
+			);
 		return [...counts.entries()]
 			.map(([name, count]) => ({ name, count }))
 			.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
@@ -116,10 +168,15 @@ export default function Landing() {
 		else if (sort === "year") {
 			copy.sort(
 				(a, b) =>
-					(Number(b.date?.slice(0, 4) || 0) - Number(a.date?.slice(0, 4) || 0)) || a.title.localeCompare(b.title),
+					Number(b.date?.slice(0, 4) || 0) - Number(a.date?.slice(0, 4) || 0) ||
+					a.title.localeCompare(b.title),
 			);
 		} else {
-			copy.sort((a, b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0) || a.title.localeCompare(b.title));
+			copy.sort(
+				(a, b) =>
+					(b.sizeBytes ?? 0) - (a.sizeBytes ?? 0) ||
+					a.title.localeCompare(b.title),
+			);
 		}
 		return copy;
 	}, [results, sort]);
@@ -135,8 +192,15 @@ export default function Landing() {
 				const rom = view.byId.get(id);
 				return rom ? { game: romView(rom), entry } : null;
 			})
-			.filter((row): row is { game: RomView; entry: (typeof saves)[string] } => row !== null);
-		rows.sort((a, b) => Number(b.entry.pinned) - Number(a.entry.pinned) || b.entry.createdAt.localeCompare(a.entry.createdAt));
+			.filter(
+				(row): row is { game: RomView; entry: (typeof saves)[string] } =>
+					row !== null,
+			);
+		rows.sort(
+			(a, b) =>
+				Number(b.entry.pinned) - Number(a.entry.pinned) ||
+				b.entry.createdAt.localeCompare(a.entry.createdAt),
+		);
 		return rows;
 	}, [saves, view.byId]);
 
@@ -147,13 +211,17 @@ export default function Landing() {
 				name: collection.name,
 				note: collection.note,
 				curator: collection.curator,
-				items: collection.items.map((item) => ({ romId: item.romId, curatorNote: item.curatorNote })),
+				items: collection.items.map((item) => ({
+					romId: item.romId,
+					curatorNote: item.curatorNote,
+				})),
 			})),
 		[collections],
 	);
 
 	const inListsFor = useCallback(
-		(romId: string) => lists.filter((list) => list.items.some((item) => item.romId === romId)),
+		(romId: string) =>
+			lists.filter((list) => list.items.some((item) => item.romId === romId)),
 		[lists],
 	);
 
@@ -173,20 +241,28 @@ export default function Landing() {
 	}, [heroResolved]);
 
 	const heroItems: HeroCartridge[] = useMemo(
-		() => heroResolved.map((item) => ({ rom: item.rom, artUrl: heroArt.get(item.rom.title) ?? null })),
+		() =>
+			heroResolved.map((item) => ({
+				rom: item.rom,
+				artUrl: heroArt.get(item.rom.title) ?? null,
+			})),
 		[heroResolved, heroArt],
 	);
 
 	const canons = useMemo(
-		() => CANON_TEMPLATES.map((template) => ({ template, resolved: resolveCanon(view.roms, template) })),
+		() =>
+			CANON_TEMPLATES.map((template) => ({
+				template,
+				resolved: resolveCanon(view.roms, template),
+			})),
 		[view.roms],
 	);
 
-	const stats = useMemo(() => {
-		let bytes = 0;
-		for (const rom of view.roms) bytes += rom.sizeBytes ?? 0;
-		return { titles: total, systems: consoles.length, bytes };
-	}, [consoles.length, total, view.roms]);
+	const stats = { titles: total, systems: consoles.length };
+	const openShelf = () => {
+		if (window.matchMedia("(min-width: 1024px)").matches) scrollToId("shelf");
+		else setSheet(true);
+	};
 
 	const makeList = useCallback((name: string) => {
 		const clean = name.trim().slice(0, NAME_MAX);
@@ -214,52 +290,74 @@ export default function Landing() {
 	);
 
 	const shelfPanel = (
-		<div className="flex h-full flex-col">
-			<div className="flex gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1">
+		<div className="shelf-panel flex h-full flex-col">
+			<div className="shelf-tabs flex gap-1">
 				<button
-					type="button"
-					onClick={() => setTab("library")}
 					className={`tab ${tab === "library" ? "on" : ""}`}
+					onClick={() => setTab("library")}
+					type="button"
 				>
 					Library <span className="tnum faint ml-1">{library.length}</span>
 				</button>
-				<button type="button" onClick={() => setTab("lists")} className={`tab ${tab === "lists" ? "on" : ""}`}>
+				<button
+					className={`tab ${tab === "lists" ? "on" : ""}`}
+					onClick={() => setTab("lists")}
+					type="button"
+				>
 					Lists <span className="tnum faint ml-1">{lists.length}</span>
 				</button>
 			</div>
 
-			<div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1 no-scrollbar">
+			<div className="no-scrollbar mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
 				{tab === "library" ? (
 					library.length === 0 ? (
-						<div className="sheet-card px-5 py-10 text-center">
+						<div className="empty-shelf">
+							<svg
+								aria-hidden="true"
+								fill="none"
+								height="36"
+								stroke="currentColor"
+								strokeWidth="1"
+								viewBox="0 0 30 36"
+								width="30"
+							>
+								<path d="M6 5h18v26l-9-6-9 6V5Z" />
+								<path d="M10 11h10M10 15h7" />
+							</svg>
 							<p className="text-[14px]">Your shelf is empty.</p>
 							<p className="muted mt-1.5 text-[12.5px]">
-								Press <span className="text-white">Keep</span> on anything in the index.
+								Keep a game. Come back whenever.
 							</p>
 						</div>
 					) : (
 						<ul className="space-y-1">
 							{library.map((row) => (
 								<li
-									key={row.game.id}
 									className="in flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-white/[0.04]"
+									key={row.game.id}
 								>
-									<ShelfCover view={row.game} compact className="h-10 w-12 shrink-0" />
+									<ShelfCover
+										className="h-10 w-12 shrink-0"
+										compact
+										view={row.game}
+									/>
 									<Link
-										to={`/rom/${row.game.slug}`}
 										className="min-w-0 flex-1 text-left"
 										onClick={() => setSheet(false)}
+										to={`/rom/${row.game.slug}`}
 									>
-										<span className="block truncate text-[13.5px]">{row.game.title}</span>
+										<span className="block truncate text-[13.5px]">
+											{row.game.title}
+										</span>
 										<span className="faint block text-[11.5px]">
-											{row.game.platform} - {row.game.year ?? "-"}
+											{row.game.platform}
 										</span>
 									</Link>
 									<button
-										type="button"
-										onClick={() => toggleSave(row.game.id)}
 										aria-label={`Remove ${row.game.title}`}
 										className="faint shrink-0 px-1.5 text-[15px] hover:text-white"
+										onClick={() => toggleSave(row.game.id)}
+										type="button"
 									>
 										×
 									</button>
@@ -277,17 +375,17 @@ export default function Landing() {
 							}}
 						>
 							<input
-								value={listName}
-								onChange={(event) => setListName(event.target.value)}
-								maxLength={NAME_MAX}
-								placeholder="Name a list..."
 								aria-label="Name a list"
 								className="bare py-1.5 text-[14px]"
+								maxLength={NAME_MAX}
+								onChange={(event) => setListName(event.target.value)}
+								placeholder="Name a list..."
+								value={listName}
 							/>
 							<button
-								type="submit"
-								disabled={!listName.trim()}
 								className="shrink-0 text-[13px] text-white/70 hover:text-white disabled:opacity-30"
+								disabled={!listName.trim()}
+								type="submit"
 							>
 								Create
 							</button>
@@ -299,42 +397,57 @@ export default function Landing() {
 									const open = openList === list.id;
 									const ordered = list.items
 										.map((item) => view.byId.get(item.romId))
-										.filter((rom): rom is NonNullable<typeof rom> => Boolean(rom))
+										.filter((rom): rom is NonNullable<typeof rom> =>
+											Boolean(rom),
+										)
 										.map(romView);
-									const totalMb = ordered.reduce((sum, game) => sum + (game.sizeMb ?? 0), 0);
+									const totalMb = ordered.reduce(
+										(sum, game) => sum + (game.sizeMb ?? 0),
+										0,
+									);
 									return (
-										<li key={list.id} className="rounded-xl">
+										<li className="rounded-xl" key={list.id}>
 											<button
-												type="button"
-												onClick={() => setOpenList(open ? null : list.id)}
-												className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-white/[0.04]"
 												aria-expanded={open}
+												className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-white/[0.04]"
+												onClick={() => setOpenList(open ? null : list.id)}
+												type="button"
 											>
 												<span className="flex -space-x-2">
 													{ordered.slice(0, 3).map((game) => (
 														<ShelfCover
+															className="h-8 w-8 ring-2 ring-[#0a0a0b]"
+															compact
 															key={game.id}
 															view={game}
-															compact
-															className="h-8 w-8 ring-2 ring-[#0a0a0b]"
 														/>
 													))}
 													{ordered.length === 0 && (
-														<span className="faint grid h-8 w-8 place-items-center rounded-xl border border-dashed border-white/20 text-[12px]">
+														<span className="faint grid h-8 w-8 place-items-center rounded-xl border border-white/20 border-dashed text-[12px]">
 															+
 														</span>
 													)}
 												</span>
-												<span className="min-w-0 flex-1 truncate text-[13.5px]">{list.name}</span>
-												<span className="tnum faint text-[12px]">{ordered.length}</span>
+												<span className="min-w-0 flex-1 truncate text-[13.5px]">
+													{list.name}
+												</span>
+												<span className="tnum faint text-[12px]">
+													{ordered.length}
+												</span>
 											</button>
 
 											{open && (
 												<div className="in pb-3 pl-2">
-													{list.note && <p className="faint px-1 pb-2 text-[11.5px] leading-relaxed">{list.note}</p>}
+													{list.note && (
+														<p className="faint px-1 pb-2 text-[11.5px] leading-relaxed">
+															{list.note}
+														</p>
+													)}
 													<p className="faint tnum px-1 pb-2 text-[11px]">
 														{formatSizeMb(totalMb)}
-														{list.curator ? ` - curated by ${list.curator}` : ""}
+														{list.curator
+															? ` - curated by ${list.curator}`
+															: ""}
 													</p>
 													{ordered.length === 0 ? (
 														<p className="faint px-1 py-2 text-[12px]">
@@ -344,40 +457,48 @@ export default function Landing() {
 														<ol className="space-y-0.5">
 															{ordered.map((game, index) => (
 																<li
-																	key={game.id}
 																	className="flex items-center gap-2 rounded-lg px-1 py-1 hover:bg-white/[0.03]"
+																	key={game.id}
 																>
-																	<span className="tnum faint w-5 text-[11px]">{index + 1}</span>
+																	<span className="tnum faint w-5 text-[11px]">
+																		{index + 1}
+																	</span>
 																	<Link
-																		to={`/rom/${game.slug}`}
 																		className="min-w-0 flex-1 truncate text-[12.5px] hover:underline"
-																	onClick={() => setSheet(false)}
+																		onClick={() => setSheet(false)}
+																		to={`/rom/${game.slug}`}
 																	>
 																		{game.title}
 																	</Link>
 																	<button
-																		type="button"
-																		disabled={index === 0}
-																		onClick={() => moveListItem(list.id, game.id, "up")}
 																		aria-label="Move up"
 																		className="faint px-1 hover:text-white disabled:opacity-20"
+																		disabled={index === 0}
+																		onClick={() =>
+																			moveListItem(list.id, game.id, "up")
+																		}
+																		type="button"
 																	>
 																		↑
 																	</button>
 																	<button
-																		type="button"
-																		disabled={index === ordered.length - 1}
-																		onClick={() => moveListItem(list.id, game.id, "down")}
 																		aria-label="Move down"
 																		className="faint px-1 hover:text-white disabled:opacity-20"
+																		disabled={index === ordered.length - 1}
+																		onClick={() =>
+																			moveListItem(list.id, game.id, "down")
+																		}
+																		type="button"
 																	>
 																		↓
 																	</button>
 																	<button
-																		type="button"
-																		onClick={() => toggleListItem(list.id, game.id)}
 																		aria-label={`Remove ${game.title}`}
 																		className="faint px-1 hover:text-white"
+																		onClick={() =>
+																			toggleListItem(list.id, game.id)
+																		}
+																		type="button"
 																	>
 																		×
 																	</button>
@@ -386,16 +507,16 @@ export default function Landing() {
 														</ol>
 													)}
 													<Link
-														to={`/collections/${list.id}`}
 														className="faint mt-2 inline-block px-1 text-[11.5px] hover:text-white"
 														onClick={() => setSheet(false)}
+														to={`/collections/${list.id}`}
 													>
 														Open workbench →
 													</Link>
 													<button
-														type="button"
-														onClick={() => deleteList(list.id)}
 														className="faint mt-2 ml-3 px-1 text-[11.5px] hover:text-white"
+														onClick={() => deleteList(list.id)}
+														type="button"
 													>
 														Delete list
 													</button>
@@ -407,35 +528,46 @@ export default function Landing() {
 							</ul>
 						)}
 
-						<p className="faint mt-7 mb-3 font-mono text-[10.5px] tracking-[0.2em] uppercase">
+						<p className="faint mt-7 mb-3 font-mono text-[10.5px] uppercase tracking-[0.2em]">
 							Or clone a canon
 						</p>
 						<div className="space-y-2">
 							{canons.map(({ template, resolved }) => (
-								<div key={template.key} className="sheet-card p-3.5">
+								<div className="sheet-card p-3.5" key={template.key}>
 									<div className="flex items-baseline justify-between gap-3">
-										<p className="text-[13px] font-medium tracking-[-0.02em]">{template.name}</p>
-										<span className="faint tnum font-mono text-[10px]">{template.code}</span>
+										<p className="font-medium text-[13px] tracking-[-0.02em]">
+											{template.name}
+										</p>
+										<span className="faint tnum font-mono text-[10px]">
+											{template.code}
+										</span>
 									</div>
-									<p className="muted mt-1 line-clamp-2 text-[11.5px] leading-relaxed">{template.note}</p>
+									<p className="muted mt-1 line-clamp-2 text-[11.5px] leading-relaxed">
+										{template.note}
+									</p>
 									<div className="mt-3 flex items-center justify-between">
 										<span className="flex -space-x-2">
 											{resolved.slice(0, 4).map((item) => (
 												<ShelfCover
+													className="h-7 w-7 ring-2 ring-[#0a0a0b]"
+													compact
 													key={item.rom.id}
 													view={romView(item.rom)}
-													compact
-													className="h-7 w-7 ring-2 ring-[#0a0a0b]"
 												/>
 											))}
 										</span>
-										<button type="button" onClick={() => cloneCanon(template.key)} className="ghost h-8 px-3.5 text-[12px]">
+										<button
+											className="ghost h-8 px-3.5 text-[12px]"
+											onClick={() => cloneCanon(template.key)}
+											type="button"
+										>
 											Clone
 										</button>
 									</div>
 									{resolved.length < template.intents.length && (
 										<p className="faint mt-2 text-[10.5px]">
-											{template.intents.length - resolved.length} entries not in the shared index yet.
+											{template.intents.length - resolved.length} entries not in
+											the shared index yet.
 										</p>
 									)}
 								</div>
@@ -448,180 +580,206 @@ export default function Landing() {
 	);
 
 	return (
-		<div id="top">
-			{/* HERO */}
-			<header className="relative">
-				<div
-					className="orb"
-					aria-hidden
-					style={{
-						width: 520,
-						height: 520,
-						top: "-12%",
-						left: "52%",
-						background:
-							"conic-gradient(from 210deg, rgba(175,190,220,.18), transparent 44%, rgba(220,195,165,.12), transparent 74%)",
-					}}
-				/>
-				<div className="wrap relative grid min-h-[92svh] items-center gap-8 py-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 lg:py-8">
-					<div>
-						<p className="rise faint font-mono text-[11px] tracking-[0.3em] uppercase">roms.tn</p>
-						<h1
-							className="rise mt-6 text-[clamp(2.8rem,4.6vw,4.6rem)] leading-[0.9] font-semibold tracking-[-0.07em]"
-							style={{ animationDelay: "60ms" }}
-						>
-							<span className="chrome">Every cartridge,</span>
-							<br />
-							<span className="muted">one page.</span>
-						</h1>
-						<p className="rise muted mt-8 max-w-[44ch] text-[15.5px] leading-relaxed" style={{ animationDelay: "120ms" }}>
-							Search the index, keep what matters, and build lists, all without ever leaving this screen.
-						</p>
-						<div className="rise mt-10 flex flex-wrap items-center gap-4" style={{ animationDelay: "180ms" }}>
-							<MetalButton onClick={() => scrollToId("index")}>Open the index</MetalButton>
-							<button
-								type="button"
-								onClick={() => {
-									setTab("lists");
-									scrollToId("index");
-								}}
-								className="text-[14px] text-white/60 underline decoration-white/25 underline-offset-[6px] hover:text-white"
-							>
-								Start a list
-							</button>
-						</div>
-						<dl className="rise mt-14 flex flex-wrap gap-x-10 gap-y-4" style={{ animationDelay: "240ms" }}>
-							{[
-								["Titles", stats.titles ? stats.titles.toLocaleString() : "-"],
-								["Systems", String(stats.systems)],
-								["Archive", stats.bytes ? `${(stats.bytes / 1024 / 1024 / 1024).toFixed(1)} GB` : "-"],
-							].map(([key, value]) => (
-								<div key={key}>
-									<dd className="tnum text-[26px] leading-none font-semibold tracking-[-0.04em]">{value}</dd>
-									<dt className="faint mt-2 font-mono text-[10.5px] tracking-[0.18em] uppercase">{key}</dt>
-								</div>
-							))}
-						</dl>
-						<p className="rise faint mt-8 font-mono text-[10.5px] tracking-[0.16em] uppercase" style={{ animationDelay: "300ms" }}>
-							{status} - {sourceLabel} - source {DATA_SOURCE_HOST}
-						</p>
-					</div>
+		<div className="landing" id="top">
+			<nav aria-label="Main navigation" className="landing-nav landing-wrap">
+				<div className="landing-brand">
+					<MetalMark onClick={() => scrollToId("top")} />
+					<a className="brand-name" href="#top">
+						roms.tn
+					</a>
+				</div>
+				<div className="landing-nav-links">
+					<a href="#index">The index</a>
+					<button onClick={openShelf} type="button">
+						Your shelf <span className="nav-count">{library.length}</span>
+					</button>
+				</div>
+			</nav>
 
-					{/* floating 3D cartridges: popular records, resolved live */}
-					<div
-						id="hero-3d"
-						className="rise relative mx-auto h-[580px] w-full max-w-[680px] sm:h-[640px] lg:h-[min(760px,86svh)]"
-					>
-						<div
-							aria-hidden
-							className="pointer-events-none absolute inset-[8%] rounded-[48%] bg-[radial-gradient(ellipse_at_center,rgba(185,198,225,0.12),rgba(117,132,167,0.045)_42%,transparent_72%)] blur-2xl"
-						/>
-						{heroItems.length > 0 ? (
-							<Suspense
-								fallback={
-									<HeroCartridgesFallback views={heroItems.map((item) => romView(item.rom))} />
-								}
-							>
-								<HeroCartridges items={heroItems} />
-							</Suspense>
-						) : (
-							<p className="faint absolute inset-0 grid place-items-center text-[13px]">
-								{loading ? "Casting the hero shelf..." : "Hero shelf unavailable."}
-							</p>
-						)}
+			<header className="landing-hero landing-wrap">
+				<div className="hero-copy">
+					<p className="eyebrow">
+						<span className="quiet-dot" /> A small place for the classics
+					</p>
+					<h1>
+						Still worth
+						<br />
+						<span className="hero-chrome">playing.</span>
+					</h1>
+					<p className="hero-description">
+						Find an old favorite. Make a new collection.
+					</p>
+					<div className="hero-actions">
+						<button
+							className="chrome-action"
+							onClick={() => {
+								scrollToId("index");
+								searchRef.current?.focus({ preventScroll: true });
+							}}
+							type="button"
+						>
+							Explore the index <span aria-hidden>↗</span>
+						</button>
+						<button
+							className="quiet-action"
+							onClick={() => {
+								setTab("lists");
+								openShelf();
+							}}
+							type="button"
+						>
+							Make a list
+						</button>
 					</div>
+					<div className="hero-note">
+						<span className="fine-rule" /> No account. Just your favorites.
+					</div>
+				</div>
+
+				<div className="hero-gallery" id="hero-3d">
+					<div aria-hidden className="gallery-halo" />
+					{heroItems.length > 0 ? (
+						<Suspense
+							fallback={
+								<HeroCartridgesFallback
+									views={heroItems.map((item) => romView(item.rom))}
+								/>
+							}
+						>
+							<HeroCartridges items={heroItems} />
+						</Suspense>
+					) : (
+						<p className="gallery-loading">
+							{loading
+								? "Opening the collection..."
+								: "The collection is taking a moment."}
+						</p>
+					)}
+				</div>
+				<div className="hero-baseline">
+					<p>
+						<span className="tnum">
+							{stats.titles ? stats.titles.toLocaleString() : "-"}
+						</span>{" "}
+						titles <span className="baseline-slash">/</span>{" "}
+						<span className="tnum">{stats.systems || "-"}</span> systems
+					</p>
+					<a href="#index">
+						A whole archive, a little closer <span aria-hidden>↓</span>
+					</a>
 				</div>
 			</header>
 
 			{/* SPLIT: INDEX + SHELF */}
-			<div id="index" className="wrap scroll-mt-4 pb-24">
-				<div className="grid items-start gap-12 lg:grid-cols-[1fr_360px]">
+			<div className="landing-wrap archive-section" id="index">
+				<div className="section-heading">
+					<div>
+						<p className="eyebrow">01 / Explore</p>
+						<h2>
+							The index<span className="heading-dot">.</span>
+						</h2>
+					</div>
+					<p className="section-description">
+						All the possibilities.
+						<br />
+						One place to begin.
+					</p>
+				</div>
+				<div className="archive-grid">
 					<section className="min-w-0">
-						<div className="sticky top-0 z-20 -mx-1 bg-[#0a0a0b]/88 px-1 pt-5 pb-3 backdrop-blur-xl">
-							<div className="flex items-center gap-3">
-								<MetalMark onClick={() => scrollToId("top")} />
-								<div className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-full border border-white/12 bg-white/[0.03] pr-4 pl-5 focus-within:border-white/30">
-									<span className="faint text-[13px]" aria-hidden>
-										⌕
-									</span>
+						<div className="archive-controls">
+							<div className="archive-search-row">
+								<div className="archive-search">
+									<svg
+										aria-hidden="true"
+										fill="none"
+										height="18"
+										stroke="currentColor"
+										strokeWidth="1.5"
+										viewBox="0 0 24 24"
+										width="18"
+									>
+										<circle cx="10.5" cy="10.5" r="6.5" />
+										<path d="m16 16 4 4" />
+									</svg>
 									<input
-										ref={searchRef}
-										value={query}
+										aria-label="Search the shared index"
+										className="bare text-[14px]"
 										onChange={(event) => {
 											setQuery(event.target.value);
 											setVisible(PAGE);
 										}}
-										placeholder={`Search ${(total || 0).toLocaleString()} records - press /`}
-										aria-label="Search the shared index"
-										className="bare text-[14px]"
+										placeholder="Search a game, a system, a memory..."
+										ref={searchRef}
+										value={query}
 									/>
 									{query && (
 										<button
-											type="button"
-											onClick={() => setQuery("")}
 											aria-label="Clear search"
 											className="faint shrink-0 text-[15px] hover:text-white"
+											onClick={() => setQuery("")}
+											type="button"
 										>
 											×
 										</button>
 									)}
+									{!query && <kbd className="search-key">/</kbd>}
 								</div>
+							</div>
+							<div className="archive-filter-row">
 								<select
-									value={sort}
-									onChange={(event) => setSort(event.target.value as SortKey)}
+									aria-label="Filter by system"
+									className="archive-select"
+									onChange={(event) => {
+										setSystem(event.target.value);
+										setVisible(PAGE);
+									}}
+									value={system}
+								>
+									<option value="all">All systems</option>
+									{consoles.map((item) => (
+										<option key={item.name} value={item.name}>
+											{item.name}
+										</option>
+									))}
+								</select>
+								<select
 									aria-label="Sort"
-									className="hidden h-11 shrink-0 rounded-full border border-white/12 bg-transparent px-4 text-[13px] sm:block"
+									className="archive-select"
+									onChange={(event) => setSort(event.target.value as SortKey)}
+									value={sort}
 								>
 									{SORTS.map((item) => (
-										<option key={item.key} value={item.key} className="bg-[#141416]">
+										<option
+											className="bg-[#141416]"
+											key={item.key}
+											value={item.key}
+										>
 											{item.label}
 										</option>
 									))}
 								</select>
-							</div>
-
-							<div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-								<button
-									type="button"
-									onClick={() => {
-										setSystem("all");
-										setVisible(PAGE);
-									}}
-									className={`seg ${system === "all" ? "on" : ""}`}
-								>
-									All
-								</button>
-								{consoles.slice(0, 40).map((item) => (
-									<button
-										key={item.name}
-										type="button"
-										onClick={() => {
-											setSystem(item.name);
-											setVisible(PAGE);
-										}}
-										className={`seg ${system === item.name ? "on" : ""}`}
-										title={`${item.name} - ${item.count.toLocaleString()} records`}
-									>
-										{item.name}
-									</button>
-								))}
 							</div>
 						</div>
 
 						<div className="mt-2 flex items-baseline justify-between gap-4">
 							<h2 className="text-[13px] tracking-[-0.01em]">
 								<span className="tnum">{sorted.length.toLocaleString()}</span>{" "}
-								<span className="muted">{sorted.length === 1 ? "record" : "records"}</span>
-								{searching && <span className="faint"> for {deferred.trim()}</span>}
+								<span className="muted">
+									{sorted.length === 1 ? "record" : "records"}
+								</span>
+								{searching && (
+									<span className="faint"> for {deferred.trim()}</span>
+								)}
 							</h2>
 							{(query || system !== "all") && (
 								<button
-									type="button"
+									className="faint text-[12.5px] hover:text-white"
 									onClick={() => {
 										setQuery("");
 										setSystem("all");
 									}}
-									className="faint text-[12.5px] hover:text-white"
+									type="button"
 								>
 									Reset
 								</button>
@@ -629,65 +787,80 @@ export default function Landing() {
 						</div>
 
 						{searching && (
-							<p className="faint mt-1 font-mono text-[10.5px] tracking-[0.14em] uppercase">
+							<p className="faint mt-1 font-mono text-[10.5px] uppercase tracking-[0.14em]">
 								prefix filters live: p: - c: - y:
 							</p>
 						)}
 
 						{error ? (
 							<div className="sheet-card mt-5 p-8 text-center">
-								<p className="text-[15px]">The shared index could not be reached.</p>
-								<p className="muted mt-2 text-[12.5px] break-words">{error}</p>
+								<p className="text-[15px]">
+									The shared index could not be reached.
+								</p>
+								<p className="muted mt-2 break-words text-[12.5px]">{error}</p>
 								<button
-									type="button"
-									onClick={() => window.location.reload()}
 									className="ghost mt-6 h-9 px-4 text-[12px]"
+									onClick={() => window.location.reload()}
+									type="button"
 								>
 									Retry
 								</button>
 							</div>
 						) : loading ? (
-							<p className="muted py-24 text-center text-[15px]">Loading the shared index...</p>
+							<p className="muted py-24 text-center text-[15px]">
+								Loading the shared index...
+							</p>
 						) : sorted.length === 0 ? (
-							<p className="muted py-24 text-center text-[15px]">Nothing matched. Try a looser word.</p>
+							<p className="muted py-24 text-center text-[15px]">
+								Nothing matched. Try a looser word.
+							</p>
 						) : (
 							<>
-								<ul className="mt-3 divide-y divide-white/[0.07] border-y border-white/[0.07]">
+								<ul className="mt-3 divide-y divide-white/[0.07] border-white/[0.07] border-y">
 									{shown.map((rom, index) => {
 										const game = romView(rom);
 										const isSaved = savedIds.has(rom.id);
 										const expanded = openId === rom.id;
 										const inLists = inListsFor(rom.id);
 										return (
-											<li key={rom.id} id={`g-${cssId(rom.id)}`} className="row">
+											<li
+												className="row"
+												id={`g-${cssId(rom.id)}`}
+												key={rom.id}
+											>
 												<div className="flex items-center gap-4 py-3.5">
 													<span className="tnum faint hidden w-6 shrink-0 text-[11px] sm:block">
 														{String(index + 1).padStart(2, "0")}
 													</span>
 													<button
-														type="button"
-														onClick={() => setOpenId(expanded ? null : rom.id)}
-														className="shrink-0"
-														aria-label={`Details for ${game.title}`}
 														aria-expanded={expanded}
+														aria-label={`Details for ${game.title}`}
+														className="shrink-0"
+														onClick={() => setOpenId(expanded ? null : rom.id)}
+														type="button"
 													>
-														<ShelfCover view={game} compact className="row-thumb h-14 w-[72px]" />
+														<ShelfCover
+															className="row-thumb h-14 w-[72px]"
+															compact
+															view={game}
+														/>
 													</button>
 													<button
-														type="button"
-														onClick={() => setOpenId(expanded ? null : rom.id)}
-														className="min-w-0 flex-1 text-left"
 														aria-expanded={expanded}
+														className="min-w-0 flex-1 text-left"
+														onClick={() => setOpenId(expanded ? null : rom.id)}
+														type="button"
 													>
-														<span className="block truncate text-[15px] font-medium tracking-[-0.025em]">
+														<span className="block truncate font-medium text-[15px] tracking-[-0.025em]">
 															{game.title}
 														</span>
 														<span className="faint block truncate text-[12px]">
-															{game.platform} - {game.year ?? "-"} - {game.publisher}
+															{game.platform}
 															{inLists.length > 0 && (
 																<span className="text-white/45">
-																									{" "}
-																	- in {inLists.length} {inLists.length === 1 ? "list" : "lists"}
+																	{" "}
+																	- in {inLists.length}{" "}
+																	{inLists.length === 1 ? "list" : "lists"}
 																</span>
 															)}
 														</span>
@@ -696,9 +869,9 @@ export default function Landing() {
 														{formatSizeMb(game.sizeMb)}
 													</span>
 													<button
-														type="button"
-														onClick={() => toggleSave(rom.id)}
 														className={`ghost h-9 shrink-0 px-3.5 text-[12.5px] ${isSaved ? "on" : ""}`}
+														onClick={() => toggleSave(rom.id)}
+														type="button"
 													>
 														{isSaved ? "Kept" : "Keep"}
 													</button>
@@ -706,12 +879,6 @@ export default function Landing() {
 
 												{expanded && (
 													<div className="in pb-6 sm:pl-[118px]">
-														<p className="muted max-w-[62ch] text-[13.5px] leading-relaxed">
-															Filed under {game.publisher} on {game.platform}
-														{game.year ? `, dated ${game.year}` : ""}. This row is generated straight from the shared
-														index record, so title, company, console, folder, size and date are exactly what the host
-														reports.
-														</p>
 														<dl className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
 															{[
 																["System", game.platform],
@@ -721,26 +888,37 @@ export default function Landing() {
 																["Date", game.date || "-"],
 															].map(([key, value]) => (
 																<div key={key}>
-																	<dt className="faint font-mono text-[10px] tracking-[0.16em] uppercase">
+																	<dt className="faint font-mono text-[10px] uppercase tracking-[0.16em]">
 																		{key}
 																	</dt>
-																	<dd className="tnum mt-1 max-w-[42ch] truncate text-[13px]">{value}</dd>
+																	<dd className="tnum mt-1 max-w-[42ch] truncate text-[13px]">
+																		{value}
+																	</dd>
 																</div>
 															))}
 														</dl>
 														<div className="mt-5 flex flex-wrap items-center gap-2">
-															<Link to={`/rom/${game.slug}`} className="ghost h-8 px-3.5 text-[12px]">
+															<Link
+																className="ghost h-8 px-3.5 text-[12px]"
+																to={`/rom/${game.slug}`}
+															>
 																Open record
 															</Link>
-															<span className="faint mr-1 text-[12.5px]">File into:</span>
+															<span className="faint mr-1 text-[12.5px]">
+																File into:
+															</span>
 															{lists.map((list) => {
-																const has = list.items.some((item) => item.romId === rom.id);
+																const has = list.items.some(
+																	(item) => item.romId === rom.id,
+																);
 																return (
 																	<button
-																		key={list.id}
-																		type="button"
-																		onClick={() => toggleListItem(list.id, rom.id)}
 																		className={`ghost h-8 px-3 text-[12px] ${has ? "on" : ""}`}
+																		key={list.id}
+																		onClick={() =>
+																			toggleListItem(list.id, rom.id)
+																		}
+																		type="button"
 																	>
 																		{has ? "✓ " : "+ "}
 																		{list.name}
@@ -751,7 +929,9 @@ export default function Landing() {
 																className="underline-field flex items-center gap-2"
 																onSubmit={(event) => {
 																	event.preventDefault();
-																	const data = new FormData(event.currentTarget);
+																	const data = new FormData(
+																		event.currentTarget,
+																	);
 																	const name = String(data.get("name") ?? "");
 																	const id = makeList(name);
 																	if (id) toggleListItem(id, rom.id);
@@ -759,14 +939,17 @@ export default function Landing() {
 																}}
 															>
 																<input
-																	name="name"
-																	required
-																	maxLength={NAME_MAX}
-																	placeholder="new list..."
 																	aria-label="New list name"
 																	className="bare w-[130px] py-1 text-[12.5px]"
+																	maxLength={NAME_MAX}
+																	name="name"
+																	placeholder="new list..."
+																	required
 																/>
-																<button type="submit" className="shrink-0 text-[12px] text-white/70 hover:text-white">
+																<button
+																	className="shrink-0 text-[12px] text-white/70 hover:text-white"
+																	type="submit"
+																>
 																	Add
 																</button>
 															</form>
@@ -780,14 +963,15 @@ export default function Landing() {
 								{visible < sorted.length && (
 									<div className="mt-8 flex flex-col items-center gap-2">
 										<button
-											type="button"
-											onClick={() => setVisible((value) => value + PAGE)}
 											className="ghost h-10 px-5 text-[12.5px]"
+											onClick={() => setVisible((value) => value + PAGE)}
+											type="button"
 										>
 											Show more
 										</button>
 										<p className="faint tnum font-mono text-[10.5px]">
-											showing {shown.length.toLocaleString()} of {sorted.length.toLocaleString()}
+											showing {shown.length.toLocaleString()} of{" "}
+											{sorted.length.toLocaleString()}
 										</p>
 									</div>
 								)}
@@ -796,58 +980,81 @@ export default function Landing() {
 					</section>
 
 					{/* SHELF, desktop */}
-					<aside className="sticky top-5 hidden h-[calc(100svh-2.5rem)] lg:block">
-						<div className="flex items-baseline justify-between pb-4">
-							<h2 className="text-[15px] font-medium tracking-[-0.03em]">Your shelf</h2>
-							<span className="faint font-mono text-[10.5px] tracking-[0.18em] uppercase">Saved here</span>
+					<aside className="archive-shelf" id="shelf">
+						<div className="shelf-heading">
+							<h2>Your shelf</h2>
+							<span className="eyebrow">Only yours</span>
 						</div>
-						<div className="h-[calc(100%-2.5rem)]">{shelfPanel}</div>
+						<div className="min-h-0 flex-1">{shelfPanel}</div>
 					</aside>
 				</div>
 			</div>
 
-			<footer className="wrap border-t border-white/[0.07] py-12 text-center">
-				<p className="chrome text-[26px] font-semibold tracking-[-0.05em]">roms.tn</p>
-				<p className="faint mt-3 text-[12px]">
-					{stats.titles ? stats.titles.toLocaleString() : "-"} records - {consoles.length} systems - one page
-				</p>
-				<div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+			<footer className="landing-wrap landing-footer">
+				<div>
+					<a className="brand-name" href="#top">
+						roms.tn
+					</a>
+					<p>A quiet corner of the archive.</p>
+				</div>
+				<div className="footer-links">
 					{[
 						["Discover", "/browse"],
 						["Library", "/library"],
 						["Lists", "/collections"],
 						["Systems", "/platforms"],
 					].map(([label, href]) => (
-						<Link key={href} to={href} className="faint text-[12px] hover:text-white">
+						<Link
+							className="faint text-[12px] hover:text-white"
+							key={href}
+							to={href}
+						>
 							{label}
 						</Link>
 					))}
 				</div>
+				<p className="footer-source" title={DATA_SOURCE_HOST}>
+					Live index. Locally kept.
+				</p>
 			</footer>
 
 			{/* SHELF, mobile trigger + sheet */}
-			<div className="fixed inset-x-0 bottom-0 z-50 flex justify-center pb-[max(16px,env(safe-area-inset-bottom))] lg:hidden">
-				<MetalButton size="sm" onClick={() => setSheet(true)}>
-					Your shelf - {library.length + lists.length}
-				</MetalButton>
+			<div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-end pr-5 pb-[max(16px,env(safe-area-inset-bottom))] lg:hidden">
+				<button
+					className="mobile-shelf-button"
+					onClick={() => setSheet(true)}
+					type="button"
+				>
+					Your shelf <span>{library.length + lists.length}</span>
+				</button>
 			</div>
 
 			{sheet && (
-				<div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true">
+				<div
+					aria-label="Your shelf"
+					aria-modal="true"
+					className="fixed inset-0 z-[60] lg:hidden"
+					role="dialog"
+				>
 					<button
-						type="button"
 						aria-label="Close shelf"
-						onClick={() => setSheet(false)}
 						className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+						onClick={() => setSheet(false)}
+						type="button"
 					/>
-					<div className="sheet-up absolute inset-x-0 bottom-0 flex h-[80svh] flex-col rounded-t-3xl border-t border-white/10 bg-[#0d0d0f] p-5">
+					<div
+						className="sheet-up absolute inset-x-0 bottom-0 flex h-[80svh] flex-col rounded-t-3xl border-white/10 border-t bg-[#0d0d0f] p-5"
+						ref={sheetRef}
+					>
 						<div className="mb-4 flex items-center justify-between">
-							<h2 className="text-[15px] font-medium tracking-[-0.03em]">Your shelf</h2>
+							<h2 className="font-medium text-[15px] tracking-[-0.03em]">
+								Your shelf
+							</h2>
 							<button
-								type="button"
-								onClick={() => setSheet(false)}
 								aria-label="Close"
 								className="ghost grid h-9 w-9 place-items-center text-[15px]"
+								onClick={() => setSheet(false)}
+								type="button"
 							>
 								×
 							</button>

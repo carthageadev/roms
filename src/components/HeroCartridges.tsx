@@ -1,505 +1,500 @@
-/**
- * Floating 3D hero cartridges.
- *
- * Ported from the cartridge-studio vertical gallery: the same GLB shell, the
- * same PBR plastic + paper sticker materials, the same wrapping carousel
- * math, the same studio light rig defaults. What did not come over:
- *
- * - the debug Leva panel, inspect zoom mode, favorites, and search UI,
- * - the ScreenScraper resolver queue (hero art resolves once, see
- *   `lib/cover-art`, and never touches the browse index),
- * - the remote environment HDR (lights only, so the hero is self-contained).
- *
- * One deliberate deviation from the studio: it mounts R3F through `<Canvas>`,
- * which waits on a ResizeObserver reading before creating the WebGL root.
- * That observer never fires in some embedded browsers, leaving a dead
- * 300x150 canvas. This hero drives `createRoot` directly with an explicitly
- * measured size instead, so it initializes everywhere.
- *
- * Display-only: the full index search is untouched and still covers every
- * record. Selecting a cartridge updates the small title/platform readout;
- * gallery gestures never navigate away from the landing page.
- */
-
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
-import { createRoot, events, extend, useFrame, useThree } from "@react-three/fiber";
+/** A continuous, drag/wheel-only gallery. All slots stay mounted as they wrap. */
+import { useGLTF } from "@react-three/drei/core/Gltf.js";
 import type { Catalogue, ReconcilerRoot } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
+import {
+	createRoot,
+	extend,
+	invalidate,
+	useFrame,
+	useThree,
+} from "@react-three/fiber";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import {
+	Suspense,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import * as THREE from "three";
-import type { RomEntry } from "../lib/roms";
-import { romView } from "../lib/rom-view";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { labelDataUrl } from "../lib/cover-label";
+import { romView } from "../lib/rom-view";
+import type { RomEntry } from "../lib/roms";
+import HeroCartridgesFallback from "./HeroCartridgesFallback";
 
-/* Manual roots do not run <Canvas>'s auto-extend: register THREE ourselves. */
 extend(THREE as unknown as Catalogue);
 
 export interface HeroCartridge {
 	rom: RomEntry;
-	/** Resolved box art URL, or null to wear the generated label. */
 	artUrl: string | null;
 }
 
 const MODEL_URL = "/cart/model.glb";
-const BODY_URL = "/cart/fast/diffuse.webp";
-const NORMAL_URL = "/cart/fast/normal.webp";
-const ROUGH_URL = "/cart/fast/roughness.webp";
-const FALLBACK_COVER = "/cart/no-image.svg";
 const DRACO_URL = "/cart/draco/";
-
 const TARGET_HEIGHT = 2.8;
-const LERP_SPEED = 5;
-const FACE_ROTATION = Math.PI / 2;
-const CAMERA_DISTANCE = 9;
-const GAP = 2.15;
-const STEP = 1.0;
-const DEPTH_STEP = 0.55;
-const VISIBLE_RADIUS = 3;
-const MIN_HORIZONTAL_VIEW = 8;
-
-/* Light rig defaults, copied from the studio's tuned preset. */
-const RIG = {
-	ambient: 0.12,
-	fillIntensity: 1.61,
-	fillPos: [-2, 1, 14.4] as const,
-	rimIntensity: 1.25,
-	rimPos: [0, 7.2, -6.2] as const,
-	accentIntensity: 2.98,
-	accentPos: [-20, 1.1, -20] as const,
-	accentColor: "#f9a8d4",
-	exposure: 1.15,
-} as const;
-
-function wrappedOffset(index: number, selected: number, count: number): number {
-	if (count <= 0) return 0;
-	let offset = index - selected;
-	const half = count / 2;
-	if (offset > half) offset -= count;
-	if (offset < -half) offset += count;
-	return offset;
-}
-
-interface SlotTarget {
-	y: number;
-	z: number;
-	rotX: number;
-	rotY: number;
-	scale: number;
-}
-
-function getSlotTarget(offset: number): SlotTarget {
-	if (offset === 0) return { y: 0.2, z: 1.9, rotX: 0, rotY: 0, scale: 0.82 };
-	const sign = Math.sign(offset);
-	const abs = Math.abs(offset);
-	return {
-		y: -sign * (GAP + (abs - 1) * STEP),
-		z: -0.9 - (abs - 1) * DEPTH_STEP,
-		rotX: sign * 0.32,
-		rotY: -sign * 0.28,
-		scale: Math.max(0.5, 0.68 - (abs - 1) * 0.07),
-	};
-}
-
-function getStackBounds(radius: number): { minY: number; maxY: number } {
-	let minY = Number.POSITIVE_INFINITY;
-	let maxY = Number.NEGATIVE_INFINITY;
-	for (let offset = -radius; offset <= radius; offset++) {
-		const target = getSlotTarget(offset);
-		minY = Math.min(minY, target.y);
-		maxY = Math.max(maxY, target.y + TARGET_HEIGHT * target.scale);
-	}
-	return { minY, maxY };
-}
-
-/* One GPU upload per URL for the whole carousel. */
+const RADIUS = 3.6;
 const texCache = new Map<string, THREE.Texture>();
-function sharedTexture(url: string, srgb: boolean): THREE.Texture {
-	let texture = texCache.get(url);
-	if (!texture) {
-		const loader = new THREE.TextureLoader();
-		loader.setCrossOrigin("anonymous");
-		texture = loader.load(url);
-		texture.flipY = false;
-		if (srgb) texture.colorSpace = THREE.SRGBColorSpace;
-		texture.anisotropy = 4;
-		texture.needsUpdate = true;
-		texCache.set(url, texture);
-	}
-	return texture;
+
+interface GalleryMotion {
+	current: number;
+	target: number;
+	dragging: boolean;
 }
 
-function useProbedTexture(url: string): THREE.Texture {
-	const [resolved, setResolved] = useState(url);
+export function wrappedOffset(
+	index: number,
+	position: number,
+	count: number,
+): number {
+	return (
+		((((index - position + count / 2) % count) + count) % count) - count / 2
+	);
+}
+
+function texture(url: string, color = false): THREE.Texture {
+	let cached = texCache.get(url);
+	if (!cached) {
+		cached = new THREE.TextureLoader().load(url, () => invalidate());
+		cached.flipY = false;
+		cached.anisotropy = 4;
+		if (color) cached.colorSpace = THREE.SRGBColorSpace;
+		texCache.set(url, cached);
+	}
+	return cached;
+}
+
+function Cartridge({
+	item,
+	body,
+}: {
+	item: HeroCartridge;
+	body: THREE.MeshStandardMaterial;
+}) {
+	const gltf = useGLTF(MODEL_URL, DRACO_URL);
+	const labelUrl = useMemo(() => labelDataUrl(romView(item.rom)), [item.rom]);
+	const [art, setArt] = useState(labelUrl);
 	useEffect(() => {
-		let cancelled = false;
-		// Data URLs (generated labels) need no probe.
-		if (url.startsWith("data:")) {
-			setResolved(url);
+		if (!item.artUrl) {
+			setArt(labelUrl);
 			return;
 		}
-		const probe = new Image();
-		probe.crossOrigin = "anonymous";
-		probe.onload = () => {
-			if (!cancelled) setResolved(url);
+		let cancelled = false;
+		const image = new Image();
+		image.crossOrigin = "anonymous";
+		image.onload = () => {
+			if (!cancelled) setArt(item.artUrl ?? labelUrl);
 		};
-		probe.onerror = () => {
-			if (!cancelled) setResolved(FALLBACK_COVER);
+		image.onerror = () => {
+			if (!cancelled) setArt(labelUrl);
 		};
-		probe.src = url;
+		image.src = item.artUrl;
 		return () => {
 			cancelled = true;
 		};
-	}, [url]);
-	return useMemo(() => sharedTexture(resolved, true), [resolved]);
-}
-
-function Cartridge3D({ labelUrl }: { labelUrl: string }) {
-	const gltf = useGLTF(MODEL_URL, DRACO_URL);
-	const bodyBase = useMemo(() => sharedTexture(BODY_URL, true), []);
-	const bodyNormal = useMemo(() => sharedTexture(NORMAL_URL, false), []);
-	const bodyRoughness = useMemo(() => sharedTexture(ROUGH_URL, false), []);
-	const gameArt = useProbedTexture(labelUrl);
-
+	}, [item.artUrl, labelUrl]);
+	const paper = useMemo(
+		() =>
+			new THREE.MeshBasicMaterial({
+				map: texture(art, true),
+				toneMapped: false,
+			}),
+		[art],
+	);
 	const clone = useMemo(() => {
-		const c = gltf.scene.clone(true);
-		const box = new THREE.Box3().setFromObject(c);
-		const size = new THREE.Vector3();
-		box.getSize(size);
-		c.scale.multiplyScalar(TARGET_HEIGHT / Math.max(size.y, 0.001));
-		const scaled = new THREE.Box3().setFromObject(c);
-		const centre = new THREE.Vector3();
-		scaled.getCenter(centre);
-		c.position.set(-centre.x, -scaled.min.y, -centre.z);
-		c.rotation.y = FACE_ROTATION;
-		return c;
-	}, [gltf.scene]);
-
-	useEffect(() => {
-		clone.traverse((child) => {
-			if (!(child as THREE.Mesh).isMesh) return;
-			const mesh = child as THREE.Mesh;
-			if (mesh.name === "model_2") {
-				mesh.material = new THREE.MeshStandardMaterial({
-					map: bodyBase,
-					normalMap: bodyNormal,
-					normalScale: new THREE.Vector2(1.0, 1.0),
-					roughnessMap: bodyRoughness,
-					roughness: 0.75,
-					metalness: 0.0,
-					envMapIntensity: 0.45,
-					color: new THREE.Color(0xffffff),
-				});
-			} else if (mesh.name === "boxart") {
-				mesh.material = new THREE.MeshStandardMaterial({
-					map: gameArt,
-					roughness: 0.21,
-					metalness: 0.0,
-					envMapIntensity: 1.22,
-					color: new THREE.Color(0xffffff),
-				});
-			}
+		const scene = gltf.scene.clone(true);
+		const size = new THREE.Box3()
+			.setFromObject(scene)
+			.getSize(new THREE.Vector3());
+		scene.scale.multiplyScalar(TARGET_HEIGHT / Math.max(size.y, 0.001));
+		const center = new THREE.Box3()
+			.setFromObject(scene)
+			.getCenter(new THREE.Vector3());
+		scene.position.copy(center.negate());
+		scene.rotation.y = Math.PI / 2;
+		scene.traverse((child) => {
+			if (!(child instanceof THREE.Mesh)) return;
+			if (child.name === "model_2") child.material = body;
+			if (child.name === "boxart") child.material = paper;
 		});
-	}, [clone, bodyBase, bodyNormal, bodyRoughness, gameArt]);
-
-	return <primitive object={clone} />;
+		return scene;
+	}, [gltf.scene, body, paper]);
+	useEffect(
+		() => () => {
+			paper.dispose();
+		},
+		[paper],
+	);
+	return <primitive dispose={null} object={clone} />;
 }
 
-interface SlotProps {
+function slot(offset: number) {
+	const distance = Math.abs(offset);
+	if (distance < 1) {
+		// A smooth interpolation through the focus, not a discrete re-layout.
+		const t = distance * distance * (3 - 2 * distance);
+		return {
+			x: offset * 0.18,
+			y: -offset * 2.1,
+			z: THREE.MathUtils.lerp(1.8, -0.55, t),
+			scale: THREE.MathUtils.lerp(0.92, 0.66, t),
+			rotX: 0.025 + offset * 0.2,
+			rotY: -0.12 + offset * -0.15,
+		};
+	}
+	return {
+		x: offset * 0.18,
+		y: -Math.sign(offset) * (2.1 + (distance - 1) * 1.25),
+		z: -0.55 - (distance - 1) * 0.65,
+		scale: Math.max(0.43, 0.66 - (distance - 1) * 0.07),
+		rotX: 0.025 + Math.sign(offset) * 0.2,
+		rotY: -0.12 + Math.sign(offset) * -0.15,
+	};
+}
+
+function CartridgeSlot({
+	item,
+	index,
+	count,
+	motion,
+	body,
+}: {
 	item: HeroCartridge;
 	index: number;
 	count: number;
-	selected: number;
-	reducedMotion: boolean;
-}
-
-function CartridgeSlot({ item, index, count, selected, reducedMotion }: SlotProps) {
-	const ref = useRef<THREE.Group>(null!);
-	const initialized = useRef(false);
-	const isSelected = index === selected;
-
-	const labelUrl = useMemo(() => item.artUrl ?? labelDataUrl(romView(item.rom)), [item]);
-
-	const target = useMemo(() => {
-		return getSlotTarget(wrappedOffset(index, selected, count));
-	}, [index, selected, count]);
-
-	useLayoutEffect(() => {
-		if (!ref.current || initialized.current) return;
-		ref.current.position.set(0, target.y, target.z);
-		ref.current.rotation.set(target.rotX, target.rotY + FACE_ROTATION, 0);
-		ref.current.scale.setScalar(target.scale);
-		initialized.current = true;
-	}, [target]);
-
-	useFrame((state, delta) => {
-		if (!ref.current) return;
-		const l = THREE.MathUtils.lerp;
-		ref.current.position.z = l(ref.current.position.z, target.z, LERP_SPEED * delta);
-		let ty = target.y;
-		if (isSelected && !reducedMotion) ty += Math.sin(state.clock.elapsedTime * 1.85) * 0.04;
-		ref.current.position.y = l(ref.current.position.y, ty, LERP_SPEED * delta);
-		const rotY = target.rotY + FACE_ROTATION;
-		const rotX = target.rotX;
-		ref.current.rotation.y = l(ref.current.rotation.y, rotY, LERP_SPEED * delta);
-		ref.current.rotation.x = l(ref.current.rotation.x, rotX, LERP_SPEED * delta);
-		ref.current.scale.setScalar(l(ref.current.scale.x, target.scale, LERP_SPEED * delta));
+	motion: GalleryMotion;
+	body: THREE.MeshStandardMaterial;
+}) {
+	const group = useRef<THREE.Group>(null);
+	useFrame(() => {
+		if (!group.current) return;
+		const offset = wrappedOffset(index, motion.current, count);
+		group.current.visible = Math.abs(offset) <= RADIUS;
+		const target = slot(offset);
+		group.current.position.set(target.x, target.y, target.z);
+		group.current.rotation.set(target.rotX, target.rotY + Math.PI / 2, -0.04);
+		group.current.scale.setScalar(target.scale);
 	});
-
-	return <group ref={ref}><Cartridge3D labelUrl={labelUrl} /></group>;
+	return (
+		<group ref={group}>
+			<Cartridge body={body} item={item} />
+		</group>
+	);
 }
 
-function Tonemap({ visibleRadius }: { visibleRadius: number }) {
-	const gl = useThree((s) => s.gl);
-	const camera = useThree((s) => s.camera);
-	const size = useThree((s) => s.size);
-	const bounds = useMemo(() => getStackBounds(visibleRadius), [visibleRadius]);
+function Studio() {
+	const { gl, scene, camera, size, invalidate } = useThree();
 	useEffect(() => {
+		const room = new RoomEnvironment();
+		const generator = new THREE.PMREMGenerator(gl);
+		const environment = generator.fromScene(room, 0.04);
+		scene.environment = environment.texture;
 		gl.toneMapping = THREE.ACESFilmicToneMapping;
-		gl.toneMappingExposure = RIG.exposure;
+		gl.toneMappingExposure = 0.68;
+		invalidate();
+		room.dispose();
+		generator.dispose();
+		return () => {
+			scene.environment = null;
+			environment.dispose();
+		};
+	}, [gl, scene, invalidate]);
+	useEffect(() => {
+		const aspect = size.width / Math.max(size.height, 1);
 		if (camera instanceof THREE.PerspectiveCamera) {
-			// Fit the entire visible stack, not only its center cartridge, and
-			// keep enough horizontal room for the shell on narrow canvases.
-			const aspect = Math.max(size.width / Math.max(size.height, 1), 0.4);
-			const stackHeight = (bounds.maxY - bounds.minY) * 1.14;
-			const viewHeight = Math.max(stackHeight, MIN_HORIZONTAL_VIEW / aspect);
-			camera.fov = THREE.MathUtils.clamp(
-				THREE.MathUtils.radToDeg(2 * Math.atan(viewHeight / (2 * CAMERA_DISTANCE))),
-				32,
-				76,
-			);
+			const height = Math.max(10.8, 6.5 / Math.max(aspect, 0.3));
+			camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(height / 24));
+			camera.position.set(0, 1.15, 12);
+			camera.lookAt(0, 0, 0);
 			camera.updateProjectionMatrix();
+			invalidate();
 		}
-		camera.lookAt(0, (bounds.minY + bounds.maxY) / 2, 0);
-	}, [gl, camera, size.width, size.height, bounds]);
-	return null;
-}
-
-function Rig() {
+	}, [camera, size.width, size.height, invalidate]);
 	return (
 		<>
-			<ambientLight intensity={RIG.ambient} />
-			<spotLight
-				position={[...RIG.fillPos] as [number, number, number]}
-				angle={0.55}
-				penumbra={1}
-				intensity={RIG.fillIntensity}
-				distance={21}
-				decay={0}
-				color="#eef0ff"
+			<fog args={["#101110", 11, 25]} attach="fog" />
+			<ambientLight intensity={0.2} />
+			<directionalLight
+				color="#fff9ec"
+				intensity={1.15}
+				position={[-4, 5, 8]}
 			/>
-			<spotLight
-				position={[...RIG.rimPos] as [number, number, number]}
-				angle={0.58}
-				penumbra={0.39}
-				intensity={RIG.rimIntensity}
-				distance={18}
-				decay={0.79}
-				color="#c8d4ff"
-			/>
-			<pointLight
-				position={[...RIG.accentPos] as [number, number, number]}
-				intensity={RIG.accentIntensity}
-				color={RIG.accentColor}
-				decay={2}
-				distance={18}
-			/>
+			<directionalLight color="#e7f0e1" intensity={0.45} position={[5, 1, 4]} />
+			<directionalLight color="#e9eddf" intensity={0.8} position={[1, 5, -5]} />
 		</>
 	);
 }
 
-interface SceneProps {
+function GalleryScene({
+	items,
+	motion,
+	reducedMotion,
+	onSelection,
+	onReady,
+}: {
 	items: HeroCartridge[];
-	selected: number;
+	motion: GalleryMotion;
 	reducedMotion: boolean;
-}
-
-function HeroScene({ items, selected, reducedMotion }: SceneProps) {
-	const count = items.length;
-	const visibleRadius = Math.min(VISIBLE_RADIUS, Math.floor(count / 2));
+	onSelection: (index: number) => void;
+	onReady: () => void;
+}) {
+	const invalidate = useThree((state) => state.invalidate);
+	const lastSelection = useRef(-1);
+	const body = useMemo(
+		() =>
+			new THREE.MeshStandardMaterial({
+				map: texture("/cart/fast/diffuse.webp", true),
+				normalMap: texture("/cart/fast/normal.webp"),
+				normalScale: new THREE.Vector2(0.45, 0.45),
+				roughnessMap: texture("/cart/fast/roughness.webp"),
+				roughness: 0.78,
+				envMapIntensity: 0.45,
+				color: "#c7c8bc",
+			}),
+		[],
+	);
+	useEffect(() => {
+		onReady();
+		invalidate();
+	}, [onReady, invalidate]);
+	useEffect(
+		() => () => {
+			body.dispose();
+		},
+		[body],
+	);
+	useFrame((_, delta) => {
+		motion.current = reducedMotion
+			? motion.target
+			: THREE.MathUtils.damp(
+					motion.current,
+					motion.target,
+					11,
+					Math.min(delta, 0.05),
+				);
+		const selected =
+			((Math.round(motion.current) % items.length) + items.length) %
+			items.length;
+		if (selected !== lastSelection.current) {
+			lastSelection.current = selected;
+			onSelection(selected);
+		}
+		if (Math.abs(motion.current - motion.target) > 0.0001 || motion.dragging)
+			invalidate();
+	}, -1);
 	return (
 		<>
-			<Tonemap visibleRadius={visibleRadius} />
-			<Rig />
-			{items.map((item, i) =>
-				Math.abs(wrappedOffset(i, selected, count)) <= visibleRadius ? (
-					<CartridgeSlot
-						key={item.rom.id}
-						item={item}
-						index={i}
-						count={count}
-						selected={selected}
-						reducedMotion={reducedMotion}
-					/>
-				) : null,
-			)}
+			<Studio />
+			{items.map((item, index) => (
+				<CartridgeSlot
+					body={body}
+					count={items.length}
+					index={index}
+					item={item}
+					key={item.rom.id}
+					motion={motion}
+				/>
+			))}
 		</>
 	);
 }
 
-function measure(el: HTMLElement | null): { width: number; height: number } {
-	if (!el) return { width: 0, height: 0 };
-	const rect = el.getBoundingClientRect();
-	return { width: Math.max(1, Math.floor(rect.width)), height: Math.max(1, Math.floor(rect.height)) };
+function measure(element: HTMLElement) {
+	const rect = element.getBoundingClientRect();
+	return {
+		width: Math.max(1, Math.round(rect.width)),
+		height: Math.max(1, Math.round(rect.height)),
+		top: rect.top,
+		left: rect.left,
+	};
 }
 
 export default function HeroCartridges({ items }: { items: HeroCartridge[] }) {
-	const containerRef = useRef<HTMLDivElement>(null);
+	const containerRef = useRef<HTMLElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const rootRef = useRef<ReconcilerRoot<HTMLCanvasElement> | null>(null);
-	const rootCanvasRef = useRef<HTMLCanvasElement | null>(null);
-	const rootDisposeTimer = useRef<number | null>(null);
-	const rootConfigured = useRef(false);
+	const disposeTimer = useRef<number | null>(null);
+	const motion = useRef<GalleryMotion>({
+		current: 0,
+		target: 0,
+		dragging: false,
+	});
+	const drag = useRef<{
+		pointerId: number;
+		startY: number;
+		startTarget: number;
+		moved: boolean;
+	} | null>(null);
+	const snapTimer = useRef<number | null>(null);
 	const [selected, setSelected] = useState(0);
-	const drag = useRef<{ pointerId: number; lastY: number; carried: number } | null>(null);
+	const [ready, setReady] = useState(false);
 	const reducedMotion = useMemo(
-		() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+		() => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
 		[],
 	);
+	const hasItems = items.length > 0;
+	const onReady = useCallback(() => setReady(true), []);
 
-	const count = items.length;
-
-	const moveBy = useCallback((amount: number) => {
-		if (!count || amount === 0) return;
-		setSelected((current) => ((current + amount) % count + count) % count);
-	}, [count]);
-
-	// Wheel over the gallery advances the vertical shelf without scrolling the page.
-	useEffect(() => {
-		const element = containerRef.current;
-		if (!element) return;
-		let accumulated = 0;
-		let lastStepAt = Number.NEGATIVE_INFINITY;
-		const onWheel = (event: WheelEvent) => {
-			event.preventDefault();
-			const now = performance.now();
-			if (now - lastStepAt < 160) return;
-			accumulated += event.deltaY;
-			if (Math.abs(accumulated) < 55) return;
-			const direction = Math.sign(accumulated);
-			accumulated = 0;
-			lastStepAt = now;
-			moveBy(direction);
-		};
-		element.addEventListener("wheel", onWheel, { passive: false });
-		return () => element.removeEventListener("wheel", onWheel);
-	}, [moveBy]);
-
-	const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-		if (event.pointerType === "mouse" && event.button !== 0) return;
-		event.currentTarget.setPointerCapture(event.pointerId);
-		drag.current = { pointerId: event.pointerId, lastY: event.clientY, carried: 0 };
-	};
-
-	const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-		const state = drag.current;
-		if (!state || state.pointerId !== event.pointerId) return;
-		const delta = state.lastY - event.clientY;
-		state.lastY = event.clientY;
-		state.carried += delta;
-		const steps = Math.trunc(state.carried / 56);
-		if (steps) {
-			state.carried -= steps * 56;
-			moveBy(steps);
-		}
-	};
-
-	const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-		if (drag.current?.pointerId === event.pointerId) drag.current = null;
-	};
-
-	const selectedItem = items[selected] ?? items[0];
-	const selectedView = selectedItem ? romView(selectedItem.rom) : null;
-
-	// Create the WebGL root once with an explicitly measured size.
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		const container = containerRef.current;
-		if (!canvas || !container || count === 0) return;
-		if (rootDisposeTimer.current !== null) {
-			window.clearTimeout(rootDisposeTimer.current);
-			rootDisposeTimer.current = null;
-		}
-		if (rootRef.current && rootCanvasRef.current !== canvas) {
-			rootRef.current.unmount();
-			rootRef.current = null;
-			rootCanvasRef.current = null;
-			rootConfigured.current = false;
-		}
+		if (!canvas || !container || !hasItems) return;
+		if (disposeTimer.current !== null)
+			window.clearTimeout(disposeTimer.current);
 		let root = rootRef.current;
 		if (!root) {
 			root = createRoot(canvas);
 			rootRef.current = root;
-			rootCanvasRef.current = canvas;
-			rootConfigured.current = false;
-		}
-		const box = measure(container);
-		if (!rootConfigured.current) {
-			rootConfigured.current = true;
 			void root.configure({
-				events,
+				frameloop: "demand",
 				dpr: [1, 1.25],
-				camera: { position: [0, 2.5, 9], fov: 32, near: 0.1, far: 80 },
-				size: { width: box.width, height: box.height, top: 0, left: 0 },
-				gl: { antialias: true, alpha: true, powerPreference: "high-performance", stencil: false },
-			})
-				.catch(() => {
-					// WebGL unavailable: the 2D fallback already covers this case.
-				});
+				camera: { position: [0, 1.15, 12], fov: 49, near: 0.1, far: 60 },
+				size: measure(container),
+				gl: {
+					antialias: true,
+					alpha: true,
+					powerPreference: "high-performance",
+					stencil: false,
+				},
+			});
 		}
-		const onResize = () => {
-			const next = measure(container);
-			void root.configure({ size: { width: next.width, height: next.height, top: 0, left: 0 } }).catch(() => {});
+		const resize = () => {
+			if (root)
+				void root.configure({
+					size: measure(container),
+					frameloop: "demand",
+					dpr: [1, 1.25],
+				});
 		};
-		window.addEventListener("resize", onResize);
+		const observer = new ResizeObserver(resize);
+		observer.observe(container);
+		window.addEventListener("resize", resize);
 		return () => {
-			window.removeEventListener("resize", onResize);
-			// React StrictMode replays effects once in development. Defer unmount
-			// by one task so its immediate remount can reuse the same WebGL root.
-			rootDisposeTimer.current = window.setTimeout(() => {
-				rootDisposeTimer.current = null;
-				if (rootRef.current !== root) return;
-				rootRef.current = null;
-				rootCanvasRef.current = null;
-				rootConfigured.current = false;
-				root.unmount();
+			observer.disconnect();
+			window.removeEventListener("resize", resize);
+			disposeTimer.current = window.setTimeout(() => {
+				if (rootRef.current === root) {
+					rootRef.current = null;
+					root.unmount();
+				}
 			}, 0);
 		};
-	}, [count === 0]);
+	}, [hasItems]);
 
-	// Re-render the scene whenever selection or items change.
 	useEffect(() => {
-		const root = rootRef.current;
-		if (!root || count === 0) return;
-		root.render(
-			<HeroScene items={items} selected={selected} reducedMotion={reducedMotion} />,
+		rootRef.current?.render(
+			<Suspense fallback={null}>
+				<GalleryScene
+					items={items}
+					motion={motion.current}
+					onReady={onReady}
+					onSelection={setSelected}
+					reducedMotion={reducedMotion}
+				/>
+			</Suspense>,
 		);
-	});
+	}, [items, reducedMotion, onReady]);
 
-	if (count === 0) return null;
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container) return;
+		const onWheel = (event: WheelEvent) => {
+			if (event.ctrlKey) return;
+			event.preventDefault();
+			const pixels =
+				event.deltaY *
+				(event.deltaMode === 1
+					? 16
+					: event.deltaMode === 2
+						? container.clientHeight
+						: 1);
+			motion.current.target += THREE.MathUtils.clamp(pixels / 180, -1.2, 1.2);
+			invalidate();
+			if (snapTimer.current !== null) window.clearTimeout(snapTimer.current);
+			snapTimer.current = window.setTimeout(() => {
+				motion.current.target = Math.round(motion.current.target);
+				invalidate();
+			}, 140);
+		};
+		container.addEventListener("wheel", onWheel, { passive: false });
+		return () => {
+			container.removeEventListener("wheel", onWheel);
+			if (snapTimer.current !== null) window.clearTimeout(snapTimer.current);
+		};
+	}, []);
 
+	const onPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+		if (event.pointerType === "mouse" && event.button !== 0) return;
+		event.currentTarget.setPointerCapture(event.pointerId);
+		if (snapTimer.current !== null) window.clearTimeout(snapTimer.current);
+		drag.current = {
+			pointerId: event.pointerId,
+			startY: event.clientY,
+			startTarget: motion.current.target,
+			moved: false,
+		};
+	};
+	const onPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+		const state = drag.current;
+		if (!state || state.pointerId !== event.pointerId) return;
+		const distance = state.startY - event.clientY;
+		if (Math.abs(distance) < 5 && !state.moved) return;
+		state.moved = true;
+		motion.current.dragging = true;
+		motion.current.target = state.startTarget + distance / 110;
+		invalidate();
+	};
+	const endDrag = (event: ReactPointerEvent<HTMLElement>) => {
+		if (drag.current?.pointerId !== event.pointerId) return;
+		if (drag.current.moved)
+			motion.current.target = Math.round(motion.current.target);
+		motion.current.dragging = false;
+		drag.current = null;
+		if (event.currentTarget.hasPointerCapture(event.pointerId))
+			event.currentTarget.releasePointerCapture(event.pointerId);
+		invalidate();
+	};
+
+	const view = items[selected] ? romView(items[selected].rom) : null;
 	return (
-		<div className="flex h-full w-full flex-col">
-			<div
-				ref={containerRef}
-				role="region"
-				className="relative min-h-0 flex-1 cursor-grab touch-none active:cursor-grabbing"
-				aria-label="Popular game cartridges. Drag vertically or scroll to change games."
+		<div className="cartridge-gallery" data-ready={ready}>
+			{!ready && (
+				<HeroCartridgesFallback
+					views={items.map((item) => romView(item.rom))}
+				/>
+			)}
+			<section
+				aria-label="Cartridge gallery. Browse by vertical drag or scroll wheel only."
+				className="cartridge-stage"
+				onLostPointerCapture={endDrag}
+				onPointerCancel={endDrag}
 				onPointerDown={onPointerDown}
 				onPointerMove={onPointerMove}
-				onPointerUp={onPointerUp}
-				onPointerCancel={() => { drag.current = null; }}
+				onPointerUp={endDrag}
+				ref={containerRef}
 			>
-				<canvas ref={canvasRef} className="block h-full w-full" />
-			</div>
-			{selectedView && (
-				<div aria-live="polite" className="mx-auto mt-1 flex w-full max-w-[480px] items-center gap-3 rounded-2xl border border-white/12 bg-[#101013]/85 px-4 py-3 shadow-[0_18px_55px_rgba(0,0,0,.35)] backdrop-blur-xl sm:px-5">
-					<div className="min-w-0 flex-1">
-						<p className="truncate text-[14px] font-medium tracking-[-0.02em] text-white sm:text-[15px]">{selectedView.title}</p>
-						<p className="faint mt-1 truncate font-mono text-[9px] tracking-[0.13em] uppercase sm:text-[10px]">
-							{selectedView.platform}
+				<canvas
+					ref={canvasRef}
+					style={{ opacity: ready ? 1 : 0, transition: "opacity 400ms ease" }}
+				/>
+			</section>
+			{view && (
+				<div aria-live="polite" className="cartridge-caption">
+					<span className="cartridge-number">
+						{String(selected + 1).padStart(2, "0")}
+					</span>
+					<div className="min-w-0">
+						<p className="cartridge-caption-title truncate">
+							{view.title.replace(/\s*\([^)]*\)/g, "").replace(/, The\b/, "")}
 						</p>
+						<p className="cartridge-platform truncate">{view.platform}</p>
 					</div>
-					<span className="faint shrink-0 font-mono text-[9px] tracking-[0.12em] uppercase">Drag / scroll</span>
+					<span className="cartridge-instruction">
+						Drag to wander
+						<br />
+						Scroll to discover
+					</span>
 				</div>
 			)}
 		</div>
