@@ -1,44 +1,33 @@
-/**
- * Placeholder while the 3D hero chunk loads: a full seven-cart stack in the
- * same footprint, so the layout never jumps or briefly collapses to three.
- */
-
-import { ShelfCover } from "./ui";
+/** Paper-label silhouettes while the shared cartridge model warms up. */
+import { labelDataUrl } from "../lib/cover-label";
 import type { RomView } from "../lib/rom-view";
 
-export default function HeroCartridgesFallback({ views }: { views: RomView[] }) {
+export default function HeroCartridgesFallback({
+	views,
+}: {
+	views: RomView[];
+}) {
 	if (views.length === 0) return null;
 	const radius = Math.min(3, Math.floor(views.length / 2));
-	const visible = views
-		.map((view, index) => {
-			let offset = index;
-			const half = views.length / 2;
-			if (offset > half) offset -= views.length;
-			if (offset < -half) offset += views.length;
-			return { view, offset };
-		})
-		.filter(({ offset }) => Math.abs(offset) <= radius)
-		.sort((a, b) => a.offset - b.offset);
-
 	return (
-		<div className="relative mx-auto h-full w-full max-w-[460px]">
-			{visible.map(({ view, offset }) => {
+		<div aria-hidden="true" className="cartridge-placeholder">
+			{views.map((view, index) => {
+				const offset = index > views.length / 2 ? index - views.length : index;
+				if (Math.abs(offset) > radius) return null;
 				const distance = Math.abs(offset);
-				const width = 56 - distance * 6;
-				const top = 38 + offset * 12;
 				return (
 					<div
-						key={`${view.id}-${offset}`}
-						className="absolute left-1/2"
+						className="placeholder-cart"
+						key={view.id}
 						style={{
-							top: `${top}%`,
-							width: `${width}%`,
-							zIndex: radius - distance + 1,
-							opacity: 1 - distance * 0.2,
-							transform: `translateX(-50%) rotate(${offset * 1.1}deg)`,
+							top: `${50 + offset * (distance === 1 ? 18 : 13)}%`,
+							width: `${distance === 0 ? 43 : 29 - distance * 2}%`,
+							zIndex: 4 - distance,
+							opacity: 1 - distance * 0.14,
+							transform: `translate(-50%, -50%) rotate(-3deg)`,
 						}}
 					>
-						<ShelfCover view={view} className="aspect-[4/3] w-full" />
+						<img alt="" src={labelDataUrl(view)} />
 					</div>
 				);
 			})}

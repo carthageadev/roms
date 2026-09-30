@@ -102,10 +102,8 @@ const SYSTEM_HINTS: Record<string, string[]> = {
 	arcade: ["arcade", "mame", "fbneo", "neogeo"],
 };
 
-function systemMatches(rom: RomEntry, system: string): boolean {
+function systemMatches(console_: string, company: string, system: string): boolean {
 	const aliases = SYSTEM_HINTS[system] ?? [system];
-	const console_ = normalize(rom.console);
-	const company = normalize(rom.company);
 	return aliases.some((alias) => console_.includes(alias) || company.includes(alias));
 }
 
@@ -130,7 +128,9 @@ export function resolveCanon(roms: readonly RomEntry[], template: CanonTemplate)
 		const console_ = normalize(rom.console);
 		for (const slot of queries) {
 			if (slot.score >= 1000) continue;
-			if (slot.intent.system && !systemMatches(rom, slot.intent.system)) continue;
+			// These fields were normalized once above. Reusing them avoids
+			// repeating that work for every hero/canon intent in the large index.
+			if (slot.intent.system && !systemMatches(console_, company, slot.intent.system)) continue;
 			let score = -1;
 			if (title === slot.needle) score = 1000;
 			else if (title.startsWith(slot.needle)) score = 760 - Math.min(200, title.length - slot.needle.length);

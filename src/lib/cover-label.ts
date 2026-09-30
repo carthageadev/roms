@@ -15,7 +15,11 @@ const LABEL_H = 640;
 
 const labelCache = new Map<string, string>();
 
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+function wrapText(
+	ctx: CanvasRenderingContext2D,
+	text: string,
+	maxWidth: number,
+): string[] {
 	const words = text.split(/\s+/).filter(Boolean);
 	const lines: string[] = [];
 	let line = "";
@@ -44,48 +48,51 @@ export function labelDataUrl(view: RomView): string {
 	const ctx = canvas.getContext("2d");
 	if (!ctx) return "";
 
-	const gradient = ctx.createLinearGradient(0, 0, LABEL_W, LABEL_H);
-	gradient.addColorStop(0, `hsl(${view.hue} 44% 26%)`);
-	gradient.addColorStop(0.68, `hsl(${(view.hue + 40) % 360} 32% 10%)`);
-	gradient.addColorStop(1, "#0a0a0b");
-	ctx.fillStyle = gradient;
+	// Printed paper, not a fake cover lookup or a giant initials placeholder.
+	ctx.fillStyle = "#e4e1d5";
 	ctx.fillRect(0, 0, LABEL_W, LABEL_H);
+	const ink = `hsl(${view.hue} 18% 25%)`;
+	ctx.fillStyle = ink;
+	ctx.fillRect(0, 0, LABEL_W, 18);
+	ctx.textAlign = "left";
+	ctx.textBaseline = "alphabetic";
+	ctx.font = "500 18px 'Geist Mono', ui-monospace, monospace";
+	ctx.fillText("ROMS.TN / THE CLASSICS", 38, 67);
 
-	// Diagonal sheen, same language as the 2D covers.
+	// A quiet geometric print, unique to each real index record.
 	ctx.save();
-	ctx.translate(LABEL_W / 2, LABEL_H / 2);
-	ctx.rotate(-0.32);
-	ctx.fillStyle = "rgba(255,255,255,0.07)";
-	ctx.fillRect(-LABEL_W, -LABEL_H * 0.08, LABEL_W * 2, LABEL_H * 0.16);
+	ctx.beginPath();
+	ctx.rect(38, 100, LABEL_W - 76, 247);
+	ctx.clip();
+	ctx.fillStyle = ink;
+	ctx.fillRect(38, 100, LABEL_W - 76, 247);
+	ctx.strokeStyle = "#e4e1d5";
+	ctx.lineWidth = 1.5;
+	for (let i = 0; i < 8; i++) {
+		ctx.beginPath();
+		ctx.arc(155 + (view.hue % 70), 224, 37 + i * 21, -Math.PI, Math.PI);
+		ctx.stroke();
+	}
+	ctx.fillStyle = "#e4e1d5";
+	ctx.beginPath();
+	ctx.arc(155 + (view.hue % 70), 224, 25, 0, Math.PI * 2);
+	ctx.fill();
 	ctx.restore();
 
-	// Initials.
-	ctx.fillStyle = "rgba(255,255,255,0.92)";
-	ctx.font = "600 150px 'Geist Sans', system-ui, sans-serif";
-	ctx.textAlign = "center";
-	ctx.textBaseline = "middle";
-	ctx.fillText(view.initials, LABEL_W / 2, LABEL_H * 0.36);
-
-	// Title block.
-	ctx.textBaseline = "alphabetic";
-	const maxWidth = LABEL_W - 96;
-	ctx.font = "600 44px 'Geist Sans', system-ui, sans-serif";
-	const lines = wrapText(ctx, view.title, maxWidth);
-	ctx.fillStyle = "#ffffff";
-	const startY = LABEL_H - 170 - (lines.length - 1) * 26;
+	const title = view.title.replace(/\s*\([^)]*\)/g, "").replace(/, The\b/, "");
+	ctx.font = "500 44px 'Geist Sans', system-ui, sans-serif";
+	const maxWidth = LABEL_W - 76;
+	const lines = wrapText(ctx, title, maxWidth);
+	ctx.fillStyle = "#282c26";
+	const startY = 409;
 	lines.forEach((line, i) => {
-		ctx.fillText(line, LABEL_W / 2, startY + i * 52, maxWidth);
+		ctx.fillText(line, 38, startY + i * 51, maxWidth);
 	});
-
-	// Platform + year strip.
-	ctx.font = "500 26px 'Geist Mono', ui-monospace, monospace";
-	ctx.fillStyle = "rgba(255,255,255,0.6)";
-	const strip = `${view.platform} - ${view.year ?? "-"}`.toUpperCase();
-	ctx.fillText(strip.slice(0, 34), LABEL_W / 2, LABEL_H - 72, maxWidth);
-
-	// Spine rule.
-	ctx.fillStyle = "rgba(255,255,255,0.22)";
-	ctx.fillRect(48, 48, LABEL_W - 96, 3);
+	ctx.fillStyle = "#282c263a";
+	ctx.fillRect(38, 553, maxWidth, 1);
+	ctx.font = "400 17px 'Geist Mono', ui-monospace, monospace";
+	ctx.fillStyle = "#5f6658";
+	ctx.fillText(view.platform.toUpperCase(), 38, 588, maxWidth);
 
 	const url = canvas.toDataURL("image/png");
 	labelCache.set(view.id, url);

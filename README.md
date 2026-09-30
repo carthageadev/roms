@@ -2,21 +2,23 @@
 
 Premium ROM discovery, library and list frontend for [roms.tn](https://roms.tn).
 
-The landing is a single screen: hero, live searchable index, and a persistent shelf holding your saved records and your lists. Nothing navigates away to search or curate.
+The landing pairs a quiet editorial layout and restrained metallic R branding with a live searchable index and a persistent personal shelf. Search, saves, and list creation stay on the landing page.
 
 ## 3D hero cartridges
 
-The hero shows floating 3D cartridges instead of flat covers. The GLB shell, PBR plastic/paper materials, wrapping carousel math and studio light rig are ported from the `cartridge-studio` project (`D:\Github\cartridge-studio`); its debug panel, inspect mode and favorites UI were left behind.
+The hero uses the original `cartridge-studio` GLB shell in a long, continuous vertical gallery. Its lighting environment is generated locally; there is no remote HDR, debug panel, or inspect mode.
 
 - The carousel holds popular records (N64, GBA, PSX, SNES), each bound to the live shared index by search, like the canon shelves.
-- Click above or below the centred cartridge to select a neighbor. The detail strip shows its title and platform; drag vertically, scroll, or use the arrows to browse.
-- The 3D code lazy-loads in its own chunk, so first paint stays fast. A static 2D stack shows while it loads.
+- Browse only by vertical drag or scroll wheel. Clicking does nothing; there are no selection buttons or keyboard selection paths. The caption follows the centered cartridge.
+- Seven cartridges are visible at rest. All records remain mounted so entering and wrapping slots do not pop through the center.
+- The scene renders on demand while moving, then stops when idle. Small shared WebP shell textures and a locally generated environment keep its rendering cost down.
+- The 3D code loads in a separate chunk in parallel with the live index. Paper-label silhouettes show until the model is ready.
 - The compressed model's Draco decoder is bundled locally, so loading the hero does not fetch decoder files from a third party.
-- Labels are generated on a canvas by default: zero cover requests, ever.
+- Paper labels are generated on a canvas by default: zero cover requests. They show the real title and platform, not a fabricated release year.
 
 ### Real box art (optional, hero only)
 
-By default no cover API is ever called. If you add your own ScreenScraper dev credentials to a gitignored `.env.local` (see `.env.example`, never commit keys), the app resolves real box art once per hero title, one request at a time, cached in the browser. The full index search never touches that API.
+By default no cover API is ever called, even if older local credential settings exist. To opt in, set `VITE_ENABLE_HERO_COVER_ART=true` and your own ScreenScraper dev configuration in a gitignored `.env.local` (see `.env.example`). `VITE_` variables are public client configuration, so never use private account credentials here. Lookups are hero-only, serial, and browser-cached; the full index search never touches that API.
 
 ## Real data only
 

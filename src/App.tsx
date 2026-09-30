@@ -30,8 +30,8 @@ function ScrollToTop() {
 function Shell() {
 	useTitleSync();
 	const { pathname } = useLocation();
-	// The landing is the zip's UI verbatim: its own sticky metal mark, its own
-	// footer. Our global nav (home icon + hamburger) must not sit on top of it.
+	// The landing owns its quiet navigation, metallic mark, and footer.
+	// Inner-page navigation must not sit on top of the gallery.
 	const isLanding = pathname === "/";
 	return (
 		<div className="relative min-h-screen bg-[#0a0a0b] font-sans text-[#f5f5f2] antialiased">
