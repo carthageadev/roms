@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { games } from "@/db/schema";
 import { ensureCatalog } from "@/lib/archive";
-import { CATALOG } from "@/lib/catalog";
 import { fetchGameCover } from "@/lib/covers";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +10,10 @@ export const maxDuration = 60;
 
 /**
  * One-shot backfill of catalog box art. ScreenScraper is not reachable from
- * every network, so this runs where it is (e.g. production) instead of at
- * seed time: POST with `x-admin-token` matching ADMIN_TOKEN.
+ * every network and throttles aggressive clients, so this resolves one title
+ * at a time with breathing room, and only touches rows still wearing
+ * placeholders — re-running converges on the remainder. Run it where the API
+ * answers (e.g. production): POST with `x-admin-token` matching ADMIN_TOKEN.
  */
 export async function POST(request: NextRequest) {
   const token = process.env.ADMIN_TOKEN;
@@ -21,17 +22,20 @@ export async function POST(request: NextRequest) {
   }
   try {
     await ensureCatalog();
+    const force = request.nextUrl.searchParams.get("force") === "1";
+    const rows = await db.select().from(games).where(eq(games.source, "catalog"));
+    const pending = rows.filter((row) => force || row.cover.startsWith("/images/"));
     const updated: string[] = [];
     const missing: string[] = [];
-    for (const game of CATALOG) {
-      const cover = await fetchGameCover(game.title);
+    for (const row of pending) {
+      const cover = await fetchGameCover(row.title, 25000);
       if (cover) {
-        await db.update(games).set({ cover }).where(eq(games.id, game.id));
-        updated.push(game.id);
+        await db.update(games).set({ cover }).where(eq(games.id, row.id));
+        updated.push(row.id);
       } else {
-        missing.push(game.id);
+        missing.push(row.id);
       }
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     return NextResponse.json({ updated, missing }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

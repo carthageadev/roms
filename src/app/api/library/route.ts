@@ -70,22 +70,26 @@ function asRomGameInput(value: unknown): RomGameInput | null {
 }
 
 /**
- * Make sure a real index entry exists as a games row. The cover is fetched
- * at this moment — when the game joins the library — and never before.
+ * Make sure a real index entry exists as a games row. The row is inserted
+ * with a placeholder immediately so saving never waits on art; the cover
+ * lookup then runs in the background and upgrades the row when it lands.
+ * Use the backfill route for deterministic fills.
  */
 async function ensureRomGame(input: RomGameInput): Promise<Game> {
   const [existing] = await db.select().from(games).where(eq(games.id, input.id)).limit(1);
   if (existing) return existing;
-  const cover = (await fetchGameCover(input.title)) ?? "/images/rom-blank.png";
   const [row] = await db
     .insert(games)
-    .values({ ...input, cover, rank: 100000, source: "rom" })
+    .values({ ...input, cover: "/images/rom-blank.png", rank: 100000, source: "rom" })
     .onConflictDoNothing()
     .returning();
-  if (row) return row;
-  const [raced] = await db.select().from(games).where(eq(games.id, input.id)).limit(1);
-  if (!raced) throw new Error("Could not keep that game.");
-  return raced;
+  const kept =
+    row ?? (await db.select().from(games).where(eq(games.id, input.id)).limit(1))[0];
+  if (!kept) throw new Error("Could not keep that game.");
+  void fetchGameCover(input.title)
+    .then((cover) => (cover ? db.update(games).set({ cover }).where(eq(games.id, input.id)) : null))
+    .catch(() => {});
+  return kept;
 }
 
 async function ensureGameUsable(gameId: string, payload: unknown): Promise<void> {

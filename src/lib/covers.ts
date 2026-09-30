@@ -48,12 +48,13 @@ function pickLabelUrl(medias: unknown): string | null {
 /**
  * Resolve box art for a single title at the moment it joins the library.
  * Returns null when unconfigured or unresolvable — callers keep a placeholder.
- * The whole lookup races a short budget so saving never hangs on art.
+ * ScreenScraper answers slowly and throttles aggressive clients, so callers
+ * pass a budget instead of hanging on art.
  */
-export async function fetchGameCover(title: string): Promise<string | null> {
+export async function fetchGameCover(title: string, budgetMs = 15000): Promise<string | null> {
   const c = creds();
   if (!c || !title.trim()) return null;
-  const budget = new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000));
+  const budget = new Promise<null>((resolve) => setTimeout(() => resolve(null), budgetMs));
   return Promise.race([lookup(title.trim(), c), budget]);
 }
 
