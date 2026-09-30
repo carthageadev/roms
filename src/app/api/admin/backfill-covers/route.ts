@@ -23,21 +23,16 @@ export async function POST(request: NextRequest) {
     await ensureCatalog();
     const updated: string[] = [];
     const missing: string[] = [];
-    const queue = [...CATALOG];
-    const workers = Array.from({ length: 4 }, async () => {
-      while (queue.length > 0) {
-        const game = queue.shift();
-        if (!game) return;
-        const cover = await fetchGameCover(game.title);
-        if (cover) {
-          await db.update(games).set({ cover }).where(eq(games.id, game.id));
-          updated.push(game.id);
-        } else {
-          missing.push(game.id);
-        }
+    for (const game of CATALOG) {
+      const cover = await fetchGameCover(game.title);
+      if (cover) {
+        await db.update(games).set({ cover }).where(eq(games.id, game.id));
+        updated.push(game.id);
+      } else {
+        missing.push(game.id);
       }
-    });
-    await Promise.all(workers);
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+    }
     return NextResponse.json({ updated, missing }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Cover backfill failed", error);
