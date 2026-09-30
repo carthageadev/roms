@@ -5,7 +5,7 @@ export const games = pgTable("games", {
   title: text("title").notNull(),
   platform: varchar("platform", { length: 40 }).notNull(),
   platformName: text("platform_name").notNull(),
-  year: integer("year").notNull(),
+  year: integer("year"),
   genre: text("genre").notNull(),
   developer: text("developer").notNull(),
   description: text("description").notNull(),
@@ -13,6 +13,7 @@ export const games = pgTable("games", {
   color: varchar("color", { length: 20 }).notNull(),
   accent: varchar("accent", { length: 20 }).notNull(),
   rank: integer("rank").notNull(),
+  source: varchar("source", { length: 12 }).notNull().default("catalog"),
 });
 
 export const savedGames = pgTable("saved_games", {

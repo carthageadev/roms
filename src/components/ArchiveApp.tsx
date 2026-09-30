@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { ArrowRight, ArrowUpRight, Search, Bookmark, Plus, SlidersHorizontal, ChevronDown, X, Leaf, Layers, ArrowUp, Menu, Check, AlertCircle, Heart, Loader2, RotateCcw } from "lucide-react";
 import { MetalFx } from "./MetalFx";
@@ -45,6 +45,10 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [library, setLibrary] = useState<Library>({ savedGameIds: [], collections: [] });
+  const [keptGames, setKeptGames] = useState<Game[]>([]);
+  const [realResults, setRealResults] = useState<Game[]>([]);
+  const [realTotal, setRealTotal] = useState(0);
+  const [realLoading, setRealLoading] = useState(false);
   const [libraryReady, setLibraryReady] = useState(false);
   const [libraryError, setLibraryError] = useState(false);
   const [libraryTab, setLibraryTab] = useState<"games" | "collections">("games");
@@ -66,8 +70,9 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
     try {
       const response = await fetch("/api/library", { cache: "no-store" });
       if (!response.ok) throw new Error("Library unavailable");
-      const data: Library = await response.json();
+      const data = (await response.json()) as Library & { games?: Game[] };
       setLibrary(data);
+      setKeptGames(Array.isArray(data.games) ? data.games : []);
       setLibraryReady(true);
     } catch { setLibraryError(true); setLibraryReady(false); }
   }, []);
@@ -108,6 +113,24 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
     }, query ? 220 : 0);
     return () => { clearTimeout(timeout); controller.abort(); };
   }, [query, platform, genre, decade, sort, refresh]);
+  useEffect(() => {
+    // Reset the real-index panel when there is nothing to search for.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (view !== "discover" || !query.trim()) { setRealResults([]); setRealTotal(0); setRealLoading(false); return; }
+    const controller = new AbortController();
+    setRealLoading(true);
+    const timeout = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/roms?${new URLSearchParams({ q: query.trim(), limit: "12" })}`, { signal: controller.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Full index unavailable");
+        if (!controller.signal.aborted) { setRealResults(data.games ?? []); setRealTotal(data.total ?? 0); }
+      } catch {
+        if (!controller.signal.aborted) { setRealResults([]); setRealTotal(0); }
+      } finally { if (!controller.signal.aborted) setRealLoading(false); }
+    }, 320);
+    return () => { clearTimeout(timeout); controller.abort(); };
+  }, [query, view, refresh]);
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
@@ -155,14 +178,32 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
     } catch (error) { notify(error instanceof Error ? error.message : "Please try again.", true); throw error; }
     finally { setBusy(false); }
   }
+  function romPayload(game: Game) {
+    return { id: game.id, title: game.title, platform: game.platform, platformName: game.platformName, year: game.year, genre: game.genre, developer: game.developer, description: game.description, color: game.color, accent: game.accent };
+  }
+  function findKnownGame(id: string): Game | null {
+    return realResults.find((game) => game.id === id) ?? keptGames.find((game) => game.id === id) ?? (selectedGame?.id === id ? selectedGame : null);
+  }
   async function toggleSave(game: Game) {
     if (!libraryReady || busy) return;
     const wasSaved = library.savedGameIds.includes(game.id);
-    try { await mutateLibrary({ action: "toggle-save", gameId: game.id }); notify(wasSaved ? "Removed from your saved games" : "A good game, kept close. Saved to your library."); } catch { /* The library service displays a recoverable error. */ }
+    const input: Record<string, unknown> = game.id.startsWith("rom-") ? { action: "toggle-save", gameId: game.id, game: romPayload(game) } : { action: "toggle-save", gameId: game.id };
+    try {
+      const data = (await mutateLibrary(input)) as Library & { game?: Game };
+      if (data.game) {
+        const kept = data.game;
+        setKeptGames((current) => (current.some((item) => item.id === kept.id) ? current.map((item) => (item.id === kept.id ? kept : item)) : [...current, kept]));
+        setRealResults((current) => current.map((item) => (item.id === kept.id ? kept : item)));
+        if (selectedGame?.id === kept.id) setSelectedGame(kept);
+      }
+      notify(wasSaved ? "Removed from your saved games" : "A good game, kept close. Saved to your library.");
+    } catch { /* The library service displays a recoverable error. */ }
   }
   async function submitCollection(input: CollectionInput) {
     try {
-      await mutateLibrary({ action: editor?.collection ? "update-collection" : "create-collection", collectionId: editor?.collection?.id, ...input });
+      const payload: Record<string, unknown> = { action: editor?.collection ? "update-collection" : "create-collection", collectionId: editor?.collection?.id, ...input };
+      const romGame = editor?.gameId && editor.gameId.startsWith("rom-") ? findKnownGame(editor.gameId) : null;
+      await mutateLibrary(romGame ? { ...payload, games: [romPayload(romGame)] } : payload);
       notify(editor?.collection ? "Your collection, a little more you." : "Your new collection is ready.");
       setEditor(null); setSelectedCollection(null); navigate("library"); setLibraryTab("collections");
     } catch { /* Keep the editor open so the draft is not lost. */ }
@@ -183,14 +224,26 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
   async function toggleMembership(collectionId: string) {
     if (!selectedGame) return;
     const alreadyIn = library.collections.find((collection) => collection.id === collectionId)?.gameIds.includes(selectedGame.id);
-    try { await mutateLibrary({ action: "toggle-collection-game", collectionId, gameId: selectedGame.id }); notify(alreadyIn ? "Removed from the collection" : "Added to the collection. Good company."); } catch { /* Allow another attempt. */ }
+    try {
+      const input: Record<string, unknown> = selectedGame.id.startsWith("rom-")
+        ? { action: "toggle-collection-game", collectionId, gameId: selectedGame.id, game: romPayload(selectedGame) }
+        : { action: "toggle-collection-game", collectionId, gameId: selectedGame.id };
+      await mutateLibrary(input); notify(alreadyIn ? "Removed from the collection" : "Added to the collection. Good company.");
+    } catch { /* Allow another attempt. */ }
   }
 
   const hasFilters = !!query.trim() || platform !== "all" || genre !== "all" || decade !== "all";
   const queryPending = !searchError && query !== settledQuery;
   const loading = !searchError && (requestLoading || queryPending);
   const additionalFilters = Number(genre !== "all") + Number(decade !== "all");
-  const displayed = view === "library" ? results.filter((game) => library.savedGameIds.includes(game.id)) : queryPending ? results.slice(0, 4) : expanded || hasFilters ? results : results.slice(0, 4);
+  const allKnownGames = useMemo(() => {
+    const map = new Map<string, Game>();
+    for (const game of initialGames) map.set(game.id, game);
+    for (const game of keptGames) map.set(game.id, game);
+    for (const game of realResults) if (!map.has(game.id)) map.set(game.id, game);
+    return [...map.values()];
+  }, [initialGames, keptGames, realResults]);
+  const displayed = view === "library" ? keptGames.filter((game) => `${game.title} ${game.platformName}`.toLowerCase().includes(query.trim().toLowerCase())) : queryPending ? results.slice(0, 4) : expanded || hasFilters ? results : results.slice(0, 4);
   const exactPlatform = PLATFORMS.find((item) => item.id === platform);
   const activeCollection = selectedCollection && !selectedCollection.id.startsWith("curated-") ? library.collections.find((collection) => collection.id === selectedCollection.id) ?? selectedCollection : selectedCollection;
   const busyLibrary = busy || !libraryReady;
@@ -200,7 +253,7 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
   }
 
   function collectionGrid(items: (LibraryCollection | CuratedCollection)[], allowCreate = false) {
-    return <div className="collection-grid">{items.map((collection) => <CollectionCard key={collection.id} collection={collection} games={initialGames} onOpen={() => setSelectedCollection(collection)} />)}{allowCreate && items.length > 0 && <button className="create-collection-card" onClick={() => setEditor({})} disabled={busyLibrary}><span><Plus size={24} strokeWidth={1.3} /></span><h3>A little room for more.</h3><p>Create a new collection</p></button>}</div>;
+    return <div className="collection-grid">{items.map((collection) => <CollectionCard key={collection.id} collection={collection} games={allKnownGames} onOpen={() => setSelectedCollection(collection)} />)}{allowCreate && items.length > 0 && <button className="create-collection-card" onClick={() => setEditor({})} disabled={busyLibrary}><span><Plus size={24} strokeWidth={1.3} /></span><h3>A little room for more.</h3><p>Create a new collection</p></button>}</div>;
   }
 
   function libraryEmpty(kind: "games" | "collections") {
@@ -222,6 +275,8 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
 
       {(view === "discover" || (view === "library" && libraryReady && !libraryError && libraryTab === "games" && library.savedGameIds.length > 0)) && <section className={`archive-section ${view === "library" ? "library-archive" : ""}`} id="archive" aria-busy={loading}><div className="section-heading"><div><h2>{query.trim() ? `Results for “${query.trim()}”` : view === "library" ? "Saved for a rainy day." : exactPlatform ? `${exactPlatform.name}, rediscovered.` : hasFilters ? "Good games, your way." : "Your next old favorite."}</h2><p aria-live="polite">{loading ? "Looking through the archive…" : query.trim() || hasFilters ? `${displayed.length} ${displayed.length === 1 ? "classic" : "classics"} to rediscover.` : view === "library" ? "Good memories, all in one place." : "Timeless for a reason. Here are a few we love."}</p></div><div className="archive-tools">{hasFilters && <button className="clear-filter-button" onClick={clearFilters}>Clear filters <X size={13} /></button>}<label className="sort-control"><span className="sr-only">Sort games</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="featured">Popular picks</option><option value="az">A to Z</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select><ChevronDown size={14} /></label></div></div>{searchError ? <div className="search-error"><AlertCircle size={20} /><p>{searchError}</p><button className="text-button" onClick={() => setRefresh((current) => current + 1)}>Try again <RotateCcw size={14} /></button></div> : displayed.length ? <div className={`game-grid ${loading ? "is-loading" : ""}`}>{displayed.map((game) => <GameCard key={game.id} game={game} saved={library.savedGameIds.includes(game.id)} disabled={busyLibrary} onSave={toggleSave} onOpen={setSelectedGame} />)}</div> : <div className="empty-state search-empty"><Search size={34} strokeWidth={1.2} /><h3>{loading ? "Looking through the archive…" : "A different adventure, perhaps?"}</h3><p>{loading ? "Good games are worth a little patience." : "No games match that search. Try a title, a genre, or another platform."}</p>{!loading && <button className="secondary-button" onClick={clearFilters}>Explore all games <ArrowRight size={15} /></button>}</div>}{view === "discover" && !expanded && !hasFilters && results.length > 4 && <div className="browse-more"><button className="browse-button" onClick={() => setExpanded(true)}>Explore all {initialGames.length} games <ArrowRight size={16} /><span className="browse-dot" /></button></div>}{view === "discover" && expanded && !hasFilters && <div className="archive-end"><span className="live-dot" />{initialGames.length} classics. Countless memories.<button onClick={() => { setExpanded(false); document.getElementById("archive")?.scrollIntoView({ behavior: "smooth" }); }}>Show the highlights <ArrowUp size={12} /></button></div>}</section>}
 
+      {view === "discover" && query.trim() !== "" && <section className="archive-section real-index" id="real-index" aria-busy={realLoading}><div className="section-heading"><div><span className="eyebrow">BEYOND THE SHELF</span><h2>From the full index.</h2><p aria-live="polite">{realLoading ? "Searching every record…" : realTotal === 0 ? "Nothing in the full index for that name." : `${realTotal.toLocaleString()} ${realTotal === 1 ? "record" : "records"} in the full index. Save one to fetch its cover.`}</p></div></div>{realResults.length > 0 && <div className="game-grid">{realResults.map((game) => <GameCard key={game.id} game={game} saved={library.savedGameIds.includes(game.id)} disabled={busyLibrary} onSave={toggleSave} onOpen={setSelectedGame} />)}</div>}</section>}
+
       {view === "discover" && !hasFilters && <section className="curated-section"><div className="section-heading"><div><span className="eyebrow">A LITTLE CURATION GOES A LONG WAY</span><h2>Better together.</h2><p>Good games. A common thread. Your next rabbit hole.</p></div><button className="text-button section-link" onClick={() => navigate("collections")}>All collections <ArrowUpRight size={16} /></button></div>{collectionGrid(CURATED_COLLECTIONS)}</section>}
 
       <section className="mission-strip"><span className="mission-icon"><Heart size={22} strokeWidth={1.3} /></span><div><h3>More than games. A little piece of us.</h3><p>For the worlds we grew up in, and the memories worth keeping.</p></div><button className="text-button" onClick={() => setAboutOpen(true)}>Our little mission <ArrowUpRight size={16} /></button></section>
@@ -230,8 +285,8 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
     <footer className="site-footer"><div className="footer-top"><div><Brand onClick={() => navigate("discover")} /><p>Made for the love of the game.</p></div><div className="footer-links"><button onClick={() => setAboutOpen(true)}>About the archive</button><button onClick={() => setAboutOpen(true)}><Leaf size={13} />Preservation matters</button><button onClick={() => window.scrollTo({ top: 0, behavior: reducedMotion ? "instant" : "smooth" })}>Back to top <ArrowUp size={13} /></button></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} roms.tn. The past, played forward.</span><span>An independent archive. No ROM files hosted.<span className="footer-dot" /></span></div></footer>
 
     {selectedGame && <GameDetails game={selectedGame} saved={library.savedGameIds.includes(selectedGame.id)} collections={library.collections} busy={busyLibrary} onClose={() => setSelectedGame(null)} onSave={() => void toggleSave(selectedGame)} onToggleCollection={(id) => void toggleMembership(id)} onCreateCollection={() => { setEditor({ gameId: selectedGame.id }); setSelectedGame(null); }} />}
-    {activeCollection && <CollectionDetails collection={activeCollection} games={initialGames} savedIds={library.savedGameIds} busy={busyLibrary} onClose={() => setSelectedCollection(null)} onSaveGame={toggleSave} onOpenGame={(game) => { setSelectedCollection(null); setSelectedGame(game); }} onClone={() => void cloneCollection()} onEdit={() => { setEditor({ collection: activeCollection }); setSelectedCollection(null); }} />}
-    {editor && <CollectionEditor games={initialGames} collection={editor.collection} initialGameId={editor.gameId} busy={busy} onClose={() => { if (!busy) setEditor(null); }} onSubmit={submitCollection} onDelete={deleteCollection} />}
+    {activeCollection && <CollectionDetails collection={activeCollection} games={allKnownGames} savedIds={library.savedGameIds} busy={busyLibrary} onClose={() => setSelectedCollection(null)} onSaveGame={toggleSave} onOpenGame={(game) => { setSelectedCollection(null); setSelectedGame(game); }} onClone={() => void cloneCollection()} onEdit={() => { setEditor({ collection: activeCollection }); setSelectedCollection(null); }} />}
+    {editor && <CollectionEditor games={allKnownGames} collection={editor.collection} initialGameId={editor.gameId} busy={busy} onClose={() => { if (!busy) setEditor(null); }} onSubmit={submitCollection} onDelete={deleteCollection} />}
     {aboutOpen && <Modal title="The roms.tn mission" onClose={() => setAboutOpen(false)} className="about-modal"><span className="about-icon"><Leaf size={29} strokeWidth={1.2} /></span><span className="eyebrow">A SMALL ARCHIVE. A LASTING LOVE.</span><h2>The past deserves<br />a future.</h2><p>Some games stay with us. A song, a color, that first step into a world that felt bigger than the room we were in.</p><p>roms.tn is a quiet place to rediscover those worlds. We document the classics, curate the good stuff, and give you a little corner to keep your favorites together.</p><div className="about-stats"><div><strong>{initialGames.length}</strong><span>hand-picked classics</span></div><div><strong>{PLATFORMS.length}</strong><span>iconic platforms</span></div><div><Heart size={25} strokeWidth={1.3} /><span>one shared love</span></div></div><div className="about-note"><h3>Your library is yours.</h3><p>No sign-up and no public profile. Your private library is linked to this browser’s cookie; keeping it keeps your collection accessible.</p><h3>Preservation with respect.</h3><p>We don’t host or distribute ROM files. Box art and games belong to their respective creators. This independent project isn’t affiliated with Nintendo, Sony, Sega, or their publishers.</p></div><button className="primary-button" onClick={() => { setAboutOpen(false); navigate("discover"); }}>Find an old favorite <ArrowRight size={16} /></button></Modal>}
     {toast && <div className={`toast ${toast.error ? "error" : ""}`} role={toast.error ? "alert" : "status"}>{toast.error ? <AlertCircle size={17} /> : <span className="toast-check"><Check size={13} /></span>}<span>{toast.text}</span><button onClick={() => setToast(null)} aria-label="Dismiss notification"><X size={14} /></button></div>}
   </div>;
