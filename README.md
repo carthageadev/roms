@@ -45,5 +45,10 @@ Framework preset: Next.js. Set `DATABASE_URL` in the Vercel project environment 
 
 ## Notes
 
+- Catalog box art backfill: the seed covers are placeholders. From a network
+  that can reach ScreenScraper (e.g. production), run once with `ADMIN_TOKEN`
+  set: `POST /api/admin/backfill-covers` with header `x-admin-token`. It fills
+  the 16 catalog covers in the database; titles it cannot resolve are reported
+  as `missing` and keep their placeholder.
 - The previous Vite frontend is preserved on `archive/pre-next-20250930` (and the original `legacy` branch).
 - Cover art in `public/images/covers/` is placeholder art, not original box scans.
