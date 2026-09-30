@@ -1,37 +1,38 @@
 {
-	"name": "roms-tn",
-	"version": "0.1.0",
-	"private": true,
-	"type": "module",
-	"scripts": {
-		"dev": "vite",
-		"build": "tsc --noEmit && vite build",
-		"preview": "vite preview",
-		"check": "biome check .",
-		"check:unsafe": "biome check --write --unsafe .",
-		"check:write": "biome check --write .",
-		"typecheck": "tsc --noEmit"
-	},
-	"dependencies": {
-		"@fontsource/geist-mono": "^5.3.0",
-		"@fontsource/geist-sans": "^5.3.0",
-		"@react-three/drei": "10.7.7",
-		"@react-three/fiber": "9.6.1",
-		"metal-fx": "^2.0.11",
-		"react": "^19.0.0",
-		"react-dom": "^19.0.0",
-		"react-router-dom": "^7.18.4",
-		"three": "0.184.0"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "^2.2.5",
-		"@tailwindcss/vite": "^4.0.15",
-		"@types/node": "^26.4.0",
-		"@types/react": "^19.0.0",
-		"@types/react-dom": "^19.0.0",
-		"@vitejs/plugin-react": "^4.4.0",
-		"tailwindcss": "^4.0.15",
-		"typescript": "^5.8.2",
-		"vite": "^6.2.0"
-	}
+  "name": "roms-tn",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.63.0",
+    "dotenv": "17.3.1",
+    "drizzle-orm": "0.45.2",
+    "lucide-react": "^1.49.0",
+    "metal-fx": "^2.0.11",
+    "next": "16.2.6",
+    "pg": "8.20.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.1.17",
+    "@types/node": "22.19.15",
+    "@types/pg": "8.18.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "drizzle-kit": "0.31.10",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.6",
+    "postcss": "8.5.8",
+    "tailwindcss": "4.1.17",
+    "typescript": "5.9.3"
+  },
+  "trustedDependencies": [
+    "unrs-resolver"
+  ]
 }
