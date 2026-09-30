@@ -37,6 +37,12 @@ bun run dev
 
 Framework preset: Next.js. Set `DATABASE_URL` in the Vercel project environment variables — no `vercel.json` needed.
 
+## How the two shelves work
+
+- **Home shelf (seeded):** 16 hand-picked classics in `src/lib/catalog.ts`. Browsing, filters, and counts only ever touch these — user-kept games never leak into them.
+- **Full index (live):** searching also queries the published ROM index (`meta.json` + `roms.json.gz`, see `ATLAS_DATA_URL`) and shows a "From the full index" section with real records. Nothing is written until you save.
+- **Saving a real entry** inserts it into the `games` table and fetches its box art from ScreenScraper at that moment (6s budget, placeholder fallback). Saved entries appear in Your library and can join collections.
+
 ## Notes
 
 - The previous Vite frontend is preserved on `archive/pre-next-20250930` (and the original `legacy` branch).

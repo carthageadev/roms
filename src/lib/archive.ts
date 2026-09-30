@@ -34,7 +34,14 @@ export async function getGames(options: { query?: string; platform?: string; gen
     filters.push(sql`${games.year} >= ${decade} and ${games.year} < ${decade + 10}`);
   }
   const sort = options.sort === "az" ? asc(games.title) : options.sort === "newest" ? desc(games.year) : options.sort === "oldest" ? asc(games.year) : asc(games.rank);
-  return db.select().from(games).where(filters.length ? and(...filters) : undefined).orderBy(sort, asc(games.rank));
+  // The home shelf is the curated catalog. Real index entries live in the
+  // same table once kept, but never leak into catalog browsing or counts.
+  const catalogOnly = eq(games.source, "catalog");
+  return db
+    .select()
+    .from(games)
+    .where(filters.length ? and(catalogOnly, ...filters) : catalogOnly)
+    .orderBy(sort, asc(games.rank));
 }
 
 export async function getLibrary(visitorId: string): Promise<Library> {

@@ -1,6 +1,6 @@
 import type { CuratedCollection, Game } from "./types";
 
-export const CATALOG: Game[] = [
+export const CATALOG: Array<Omit<Game, "source">> = [
   { id: "zelda-ocarina", title: "The Legend of Zelda: Ocarina of Time", platform: "n64", platformName: "Nintendo 64", year: 1998, genre: "Adventure", developer: "Nintendo EAD", description: "A forest boy. A borrowed horse. A world worth saving. Travel between two eras of Hyrule in the adventure that redefined what a game could be—and still feels like coming home.", cover: "/images/covers/zelda-ocarina.png", color: "#e8e6d9", accent: "#6a7354", rank: 0 },
   { id: "pokemon-emerald", title: "Pokémon Emerald", platform: "gba", platformName: "Game Boy Advance", year: 2004, genre: "RPG", developer: "Game Freak", description: "Take the long way through Hoenn. Catch a new companion, brave the Battle Frontier, and get wonderfully lost in one of the most beloved pocket-sized worlds ever made.", cover: "/images/covers/pokemon-emerald.png", color: "#e2e8db", accent: "#53715b", rank: 1 },
   { id: "mario-64", title: "Super Mario 64", platform: "n64", platformName: "Nintendo 64", year: 1996, genre: "Platformer", developer: "Nintendo EAD", description: "The castle doors are open. Leap into paintings, find a hundred little secrets, and rediscover the pure joy of movement in Mario’s unforgettable first 3D adventure.", cover: "/images/covers/mario-64.png", color: "#e1e8ee", accent: "#637b95", rank: 2 },
