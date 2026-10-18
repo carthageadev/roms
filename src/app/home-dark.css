@@ -1,0 +1,205 @@
+/* Dark home: the cosmos ring hero, and the dark theme for the single-page app. */
+
+.app-shell,
+body {
+  background: #07080a;
+  color: #e9ecef;
+}
+::selection { background: #2a3140; color: #f4f6f8; }
+
+.site-header { background: rgba(7, 8, 10, 0.86); border-bottom-color: #171a20; }
+.brand { color: #eef1f5; }
+.brand-mark i { background: #aab4c8; }
+.brand-mark i:last-child { background: #4a5263; }
+.nav-link { color: #7d8491; }
+.nav-link.active { color: #eef1f5; }
+.nav-link.active::after { background: #aab4c8; }
+.library-button { background: #101217; border-color: #222731; color: #d6dbe3; }
+.library-button:hover,
+.library-button.active { background: #171b23; }
+.library-count { background: #1f2430; color: #c9d0dc; }
+.header-divider { background: #222731; }
+.profile-button { background: #14171d; border-color: #242a35; color: #c3cad6; }
+.profile-button:hover { background: #1b1f27; }
+
+.home-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 0 20px;
+}
+.home-copy { max-width: 760px; }
+.home-hero .eyebrow { font-size: 10px; letter-spacing: 2.4px; color: #6b7280; font-weight: 500; }
+.home-hero h1 {
+  margin: 16px 0 0;
+  font-size: clamp(40px, 5vw, 60px);
+  line-height: 1.02;
+  letter-spacing: -2.8px;
+  font-weight: 500;
+  color: #f2f4f7;
+}
+.home-hero h1 span { display: block; color: #7b8390; }
+.home-lede { margin: 18px auto 0; max-width: 46ch; color: #7a818d; font-size: 14px; line-height: 1.7; }
+
+.ring-wrap {
+  mask-image: radial-gradient(closest-side, #000 64%, transparent 100%);
+  -webkit-mask-image: radial-gradient(closest-side, #000 64%, transparent 100%);
+  position: relative;
+  width: 100%;
+  height: clamp(340px, 47vh, 470px);
+  margin-top: 4px;
+}
+.ring-stage {
+  position: absolute;
+  inset: 0;
+  outline: none;
+  touch-action: none;
+  cursor: grab;
+}
+.ring-stage:active { cursor: grabbing; }
+.ring-stage:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.25); outline-offset: -1px; border-radius: 12px; }
+.ring-stage canvas { display: block; width: 100%; height: 100%; }
+.ring-loading { position: absolute; inset: 0; }
+
+.ring-hud {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-top: 4px;
+}
+.ring-caption { min-width: 300px; }
+.ring-index {
+  font-size: 10px;
+  letter-spacing: 1.8px;
+  color: #5f6672;
+  font-variant-numeric: tabular-nums;
+}
+.ring-caption h2 {
+  margin: 6px 0 0;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.4px;
+  color: #eef1f5;
+  animation: ring-caption-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.ring-caption p {
+  margin: 5px 0 0;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+.ring-arrow {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid #262b35;
+  background: #0d0f14;
+  color: #cfd5de;
+  font-size: 16px;
+  display: grid;
+  place-items: center;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.ring-arrow:hover:not(:disabled) { border-color: #4a5263; color: #ffffff; }
+.ring-arrow:disabled { opacity: 0.3; cursor: default; }
+
+.home-search { width: min(560px, 100%); margin-top: 26px; }
+.home-search .search-box { width: 100%; background: #0d0f14; border-color: #222731; }
+.home-search .search-box > input { color: #e6eaf0; }
+.home-search .search-box > input::placeholder { color: #5f6672; }
+.home-search kbd { background: #14171d; border-color: #252b36; color: #7d8491; }
+
+@keyframes ring-caption-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 700px) {
+  .home-hero { padding-top: 34px; }
+  .ring-hud { gap: 12px; }
+  .ring-caption { min-width: 0; flex: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring-caption h2 { animation: none; }
+}
+
+/* Lower page: platform tabs, filters, cards, curated shelves, mission, footer. */
+.platform-filter { border-bottom-color: #1b1f27; }
+.platform-tab { color: #7d8491; background: transparent; }
+.platform-tab:hover { background: #12151b; color: #e1e6ee; }
+.platform-tab.active { color: #f4f6f8; background: #1d2330; border-color: #2b3345; }
+.filter-button { color: #8b93a1; border-color: #262b35; background: #0d0f14; }
+.filter-button:hover,
+.filter-button.active { background: #171b23; color: #e6eaf0; border-color: #343b4b; }
+.filter-button > span { background: #222a38; color: #cfd6e2; }
+.section-heading h2 { color: #eef1f5; }
+.section-heading p { color: #7d8491; }
+.sort-control { color: #8b93a1; }
+.sort-control select { color: #c9d0da; background: #0d0f14; }
+.sort-control select option { background: #101217; color: #e6eaf0; }
+.clear-filter-button { color: #9aa3b2; }
+.clear-filter-button:hover { color: #eef1f5; }
+.game-title { color: #e6eaf0; }
+.game-title:hover { color: #aab7d6; }
+.game-meta { color: #6b7280; }
+.eyebrow { color: #7d8797; }
+.curated-section { border-top-color: #1b1f27; }
+.text-button { color: #aab7d6; }
+.text-button:hover { color: #e6eaf0; }
+.mission-strip { background: #0d0f14; border-color: #1f2430; }
+.mission-icon { background: #14171d; border-color: #262b35; color: #aab7d6; }
+.mission-strip h3 { color: #d6dce6; }
+.mission-strip p { color: #6b7280; }
+.site-footer { border-top-color: #1b1f27; }
+.footer-top p { color: #6b7280; }
+.footer-links button { color: #7d8491; }
+.footer-links button:hover { color: #e6eaf0; }
+.footer-bottom { color: #5f6672; }
+.footer-dot { background: #4a5263; }
+.toast { background: #12151b; border-color: #262b35; color: #d6dce6; }
+.toast-check { background: #1c2430; color: #aab7d6; }
+.toast > button { color: #8b93a1; }
+.toast.error { background: #1a1212; color: #e4b8b0; border-color: #3a2424; }
+
+/* Orbit skeleton shown while the 3D ring loads; it dissolves as cartridges arrive. */
+.ring-skeleton {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: opacity 0.7s ease;
+}
+.ring-skeleton.is-hidden { opacity: 0; }
+.ring-skeleton-orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 62%;
+  height: 40%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(127, 138, 163, 0.14);
+}
+.ring-skeleton-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: rgba(170, 180, 206, 0.5);
+  transform: translate(
+    calc(cos(calc(var(--i) * 30deg)) * 31vw),
+    calc(sin(calc(var(--i) * 30deg)) * 13vw)
+  );
+  animation: ring-skeleton-pulse 1.8s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.08s);
+}
+@keyframes ring-skeleton-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
