@@ -1,16 +1,17 @@
 /**
- * Cosmos ring of cartridges.
+ * Staggered cartridge lineup.
  *
  * Built on the Panoply cartridge code: model normalisation (prepareModel),
  * shell and label materials (configureShellMaterial, labelFinishParameters),
  * texture upload pacing (TextureWarmup, useLabelTexture) and the studio light
  * rig (SceneLighting) all come from ./Scene.jsx. What is new here is the
- * layout: the cartridges orbit a tilted ring, the front one is selected, and
- * each arrives with a fade and scale once its model and label are ready.
+ * layout: the cartridges sit in a staggered line that drifts sideways on its
+ * own, the one nearest the centre is selected, and each arrives with a fade
+ * once its model and label are ready.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
-import { Stars, useGLTF } from '@react-three/drei'
+import { useGLTF } from '@react-three/drei'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
@@ -22,20 +23,24 @@ import {
   TextureWarmup,
   useLabelTexture,
 } from './Scene.jsx'
-import { MODELS, PLATFORM_ORDER, PLATFORM_NAMES, FAVORITE_TITLES, RING_SIZE, buildRing } from '../data/cartridgeModels.js'
+import { MODELS, LINEUP_SIZE } from '../data/cartridgeModels.js'
 import { labelArt } from '../lib/labelArt'
 
-const RING_RADIUS = 3.7
-const RING_TILT = 0.32
-const STEP = (Math.PI * 2) / RING_SIZE
+const SPACING = 3.05
+const CART_SCALE = 1.4
+const ROW_LIFT = 0.45
+const DEPTH_STEP = 1
+// How long the line rests on a cartridge before stepping to the next one.
+const HOLD_SECONDS = 2.6
+// Longest slice of time a single frame may advance the drift. Caps the jump
+// after a stall without making the pace depend on the frame rate.
+const MAX_FRAME_STEP = 0.25
 const FADE_SECONDS = 0.9
 const FADE_STAGGER = 0.06
 const BACKGROUND = '#07080a'
-const CAMERA_POSITION = [0, 1.0, 13.4]
-const CAMERA_TARGET = [0, -0.15, 0]
+const CAMERA_POSITION = [0, 0.35, 15]
+const CAMERA_TARGET = [0, 0.08, 0]
 const LIGHT_STATE = { pose: 'default' }
-const WHEEL_THRESHOLD = 40
-const WHEEL_COOLDOWN_MS = 260
 
 const easeOutCubic = (p) => 1 - Math.pow(1 - p, 3)
 const easeOutBack = (p) => 1 + 2.1 * Math.pow(p - 1, 3) + 1.1 * Math.pow(p - 1, 2)
@@ -80,7 +85,7 @@ function useModelBundle(platform, textureQueue) {
   }, [platform, scene, config, entries, textures])
 }
 
-function RingCartridge({ cart, index, motion, textureQueue, art, onReady }) {
+function LineCartridge({ cart, index, motion, textureQueue, art, onReady }) {
   const config = MODELS[cart.platform]
   const { prepared, shellTextures } = useModelBundle(cart.platform, textureQueue)
   const label = useLabelTexture(art, null, textureQueue)
@@ -166,20 +171,31 @@ function RingCartridge({ cart, index, motion, textureQueue, art, onReady }) {
 
   useEffect(() => () => fadeList.forEach((material) => material.dispose()), [fadeList])
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     const node = group.current
     if (!node) return
     const time = state.clock.elapsedTime
-    const angle = motion.angle + index * STEP
-    const front = (Math.cos(angle) + 1) / 2
-    const sway = Math.sin(time * 0.7 + cart.phase)
+
+    // Wrap the cartridge through an infinite line: `u` is its distance from
+    // the centre measured in slots, wrapped into (-count/2, count/2].
+    const phase = motion.drift / SPACING
+    let u = index - phase
+    u = ((u % LINEUP_SIZE) + LINEUP_SIZE) % LINEUP_SIZE
+    if (u > LINEUP_SIZE / 2) u -= LINEUP_SIZE
+
+    // How centred the cartridge is: 1 in the middle, 0 a slot away.
+    const centred = Math.max(0, 1 - Math.abs(u))
 
     node.position.set(
-      RING_RADIUS * Math.sin(angle),
-      -RING_RADIUS * Math.sin(RING_TILT) * Math.cos(angle) + 0.12 * sway,
-      RING_RADIUS * Math.cos(angle) * Math.cos(RING_TILT),
+      u * SPACING,
+      cart.row * ROW_LIFT + cart.lift + 0.05 * Math.sin(time * 0.5 + cart.phase) + 0.1 * centred,
+      cart.depth * DEPTH_STEP + 0.5 * centred,
     )
-    node.rotation.set(-0.04 + 0.03 * sway, (config.faceRotation ?? Math.PI) + angle, 0.025 * Math.cos(time * 0.6 + cart.phase))
+    node.rotation.set(
+      -0.03 + 0.02 * Math.sin(time * 0.4 + cart.phase),
+      (config.faceRotation ?? Math.PI) + cart.tilt - 0.07 * u,
+      0.02 * Math.cos(time * 0.45 + cart.phase),
+    )
 
     if (!readyRef.current) {
       node.visible = false
@@ -187,33 +203,29 @@ function RingCartridge({ cart, index, motion, textureQueue, art, onReady }) {
     }
     if (startRef.current === null) startRef.current = time + index * FADE_STAGGER
     const t = THREE.MathUtils.clamp((time - startRef.current) / FADE_SECONDS, 0, 1)
-    const eased = easeOutCubic(t)
     node.visible = t > 0
     fadeList.forEach((material) => {
-      material.opacity = (material.userData.panoplyBaseOpacity ?? 1) * eased
+      material.opacity = (material.userData.panoplyBaseOpacity ?? 1) * easeOutCubic(t)
       material.transparent = t < 1 ? true : Boolean(material.userData.panoplyBaseTransparent)
     })
-    const base = 0.46 + 0.56 * Math.pow(front, 1.6)
-    node.scale.setScalar(base * (0.92 + 0.08 * easeOutBack(t)))
+    node.scale.setScalar(CART_SCALE * (1 + 0.08 * centred) * (0.94 + 0.06 * easeOutBack(t)))
   })
 
   return (
     <group ref={group} visible={false}>
-      <group scale={1}>
-        <group rotation={config.rotation || [0, 0, 0]}>
-          <group position={prepared.modelOffset}>
-            <group scale={prepared.normScale}>
-              {prepared.parts.map((part, partIndex) => (
-                <mesh
-                  key={partIndex}
-                  geometry={part.geometry}
-                  material={resolved[partIndex]}
-                  matrix={part.matrix}
-                  matrixAutoUpdate={false}
-                  dispose={null}
-                />
-              ))}
-            </group>
+      <group rotation={config.rotation || [0, 0, 0]}>
+        <group position={prepared.modelOffset}>
+          <group scale={prepared.normScale}>
+            {prepared.parts.map((part, partIndex) => (
+              <mesh
+                key={partIndex}
+                geometry={part.geometry}
+                material={resolved[partIndex]}
+                matrix={part.matrix}
+                matrixAutoUpdate={false}
+                dispose={null}
+              />
+            ))}
           </group>
         </group>
       </group>
@@ -221,40 +233,53 @@ function RingCartridge({ cart, index, motion, textureQueue, art, onReady }) {
   )
 }
 
-function MotionDriver({ motion }) {
+// The idle motion: the line advances one cartridge at a time, pausing between
+// steps, and settles each one in the centre. It keeps moving on its own until a
+// drag takes over. Real elapsed time is used (capped, so a long stall cannot
+// jump the line), which keeps the cadence the same at 60fps and at 5fps.
+function DriftDriver({ motion }) {
   useFrame((_, delta) => {
-    const lambda = motion.dragging ? 18 : 6.5
-    motion.angle = THREE.MathUtils.damp(motion.angle, motion.target, lambda, Math.min(delta, 1 / 30))
+    const step = Math.min(delta, MAX_FRAME_STEP)
+    if (motion.settling) {
+      motion.drift = THREE.MathUtils.damp(motion.drift, motion.target, 5.5, step)
+      if (Math.abs(motion.drift - motion.target) < 0.01) {
+        motion.drift = motion.target
+        motion.settling = false
+        motion.hold = HOLD_SECONDS
+      }
+      return
+    }
+    if (motion.dragging) return
+    // Reduced motion: the line only moves when it is asked to.
+    if (!motion.auto) return
+    motion.hold -= step
+    if (motion.hold > 0) return
+    motion.target = Math.round(motion.drift / SPACING) * SPACING + SPACING
+    motion.settling = true
   })
   return null
 }
 
-function SelectionWatcher({ motion, count, onSelect }) {
+// The cartridge nearest the centre is the selected one. The index is mirrored
+// onto the container as `data-index`, which gives the browser tests a way to
+// observe the line without reading pixels.
+function SelectionWatcher({ motion, onSelect, onIndex }) {
   const last = useRef(-1)
   useFrame(() => {
-    const selected = ((-Math.round(motion.target / STEP)) % count + count) % count
-    if (selected !== last.current) {
-      last.current = selected
-      onSelect?.(selected)
-    }
+    const selected = ((Math.round(motion.drift / SPACING) % LINEUP_SIZE) + LINEUP_SIZE) % LINEUP_SIZE
+    if (selected === last.current) return
+    last.current = selected
+    onIndex?.(selected)
+    onSelect?.(selected)
   })
   return null
 }
 
-// Keep the whole ring in view on narrow screens by pulling the camera back.
-function FitCamera() {
-  const camera = useThree((state) => state.camera)
-  const size = useThree((state) => state.size)
-  useEffect(() => {
-    const aspect = size.width / Math.max(size.height, 1)
-    const halfFov = THREE.MathUtils.degToRad(camera.fov / 2)
-    const needed = (RING_RADIUS + 1.4) / (Math.tan(halfFov) * Math.max(aspect, 0.2))
-    camera.position.set(CAMERA_POSITION[0], CAMERA_POSITION[1], Math.max(CAMERA_POSITION[2], needed))
-    camera.lookAt(...CAMERA_TARGET)
-  }, [camera, size.width, size.height])
-  return null
-}
-function RingEnvironment() {
+// Cartridges are sized against the viewport height by the camera, so there is
+// nothing to rescale per screen width. A narrow screen simply shows fewer of
+// them, which is the point of a lineup.
+
+function StudioEnvironment() {
   const gl = useThree((state) => state.gl)
   const scene = useThree((state) => state.scene)
   useEffect(() => {
@@ -270,32 +295,12 @@ function RingEnvironment() {
   return null
 }
 
-function OrbitLine() {
-  const geometry = useMemo(() => {
-    const points = []
-    for (let i = 0; i <= 160; i++) {
-      const a = (i / 160) * Math.PI * 2
-      points.push(new THREE.Vector3(
-        RING_RADIUS * Math.sin(a),
-        -RING_RADIUS * Math.sin(RING_TILT) * Math.cos(a),
-        RING_RADIUS * Math.cos(a) * Math.cos(RING_TILT),
-      ))
-    }
-    return new THREE.BufferGeometry().setFromPoints(points)
-  }, [])
-  useEffect(() => () => geometry.dispose(), [geometry])
-  return (
-    <line geometry={geometry}>
-      <lineBasicMaterial color="#7f8aa3" transparent opacity={0.16} />
-    </line>
-  )
-}
-
-export default function CartridgeRing({ carts, controlRef, onSelect, onProgress }) {
-  const motion = useRef({ angle: 0, target: 0, dragging: false })
+export default function CartridgeLine({ carts, controlRef, onSelect, onProgress }) {
+  // Someone who asked for less motion still gets the line, just not the drift.
+  const [auto] = useState(() => typeof window === 'undefined' || !window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const motion = useRef({ drift: 0, target: 0, dragging: false, settling: false, hold: HOLD_SECONDS, auto })
   const queue = useRef([])
   const drag = useRef(null)
-  const wheel = useRef({ accumulated: 0, last: -Infinity })
   const container = useRef(null)
   const loadedRef = useRef(0)
   const onReady = useCallback(() => {
@@ -305,9 +310,17 @@ export default function CartridgeRing({ carts, controlRef, onSelect, onProgress 
   }, [onProgress])
   const [art, setArt] = useState({})
 
+  const onIndex = useCallback((selected) => {
+    const node = container.current
+    if (node) node.dataset.index = String(selected)
+  }, [])
+
+  // A step settles the line onto the next slot instead of teleporting it.
   const step = (direction) => {
-    const snapped = Math.round(motion.current.target / STEP)
-    motion.current.target = (snapped - direction) * STEP
+    const from = Math.round(motion.current.drift / SPACING)
+    motion.current.target = (from + direction) * SPACING
+    motion.current.settling = true
+    motion.current.hold = HOLD_SECONDS
   }
 
   useEffect(() => {
@@ -340,42 +353,29 @@ export default function CartridgeRing({ carts, controlRef, onSelect, onProgress 
     }
   }, [carts])
 
-  useEffect(() => {
-    const element = container.current
-    if (!element) return
-    const onWheel = (event) => {
-      event.preventDefault()
-      const state = wheel.current
-      state.accumulated += event.deltaY
-      const now = performance.now()
-      if (now - state.last < WHEEL_COOLDOWN_MS || Math.abs(state.accumulated) < WHEEL_THRESHOLD) return
-      step(Math.sign(state.accumulated))
-      state.accumulated = 0
-      state.last = now
-    }
-    element.addEventListener('wheel', onWheel, { passive: false })
-    return () => element.removeEventListener('wheel', onWheel)
-  }, [])
-
   const onPointerDown = (event) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return
     event.currentTarget.setPointerCapture(event.pointerId)
-    drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, start: motion.current.target, moved: false }
+    drag.current = { id: event.pointerId, x: event.clientX, start: motion.current.drift, moved: false }
   }
   const onPointerMove = (event) => {
     const state = drag.current
     if (!state || state.id !== event.pointerId) return
     const dx = event.clientX - state.x
-    const dy = event.clientY - state.y
-    if (!state.moved && Math.hypot(dx, dy) < 6) return
+    if (!state.moved && Math.abs(dx) < 6) return
     state.moved = true
     motion.current.dragging = true
-    motion.current.target = state.start + (dy - dx) * 0.0065
+    motion.current.settling = false
+    motion.current.drift = state.start - dx * 0.006
   }
   const endDrag = (event) => {
     const state = drag.current
     if (!state || state.id !== event.pointerId) return
-    if (state.moved) motion.current.target = Math.round(motion.current.target / STEP) * STEP
+    if (state.moved) {
+      motion.current.target = Math.round(motion.current.drift / SPACING) * SPACING
+      motion.current.settling = true
+      motion.current.hold = HOLD_SECONDS
+    }
     motion.current.dragging = false
     drag.current = null
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -384,11 +384,11 @@ export default function CartridgeRing({ carts, controlRef, onSelect, onProgress 
   }
 
   const onKeyDown = (event) => {
-    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+    if (event.key === 'ArrowLeft') {
       event.preventDefault()
       step(-1)
     }
-    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+    if (event.key === 'ArrowRight') {
       event.preventDefault()
       step(1)
     }
@@ -397,10 +397,10 @@ export default function CartridgeRing({ carts, controlRef, onSelect, onProgress 
   return (
     <div
       ref={container}
-      className="ring-stage"
+      className="lineup-stage"
       role="application"
       tabIndex={0}
-      aria-label="Cartridge ring. Drag, scroll, or use the arrow keys to browse."
+      aria-label="Cartridge lineup. Drag or use the arrow keys to browse."
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
@@ -414,26 +414,25 @@ export default function CartridgeRing({ carts, controlRef, onSelect, onProgress 
         camera={{ position: CAMERA_POSITION, fov: 30, near: 0.1, far: 60 }}
         gl={{
           antialias: true,
-          alpha: true,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 0.8,
+          toneMappingExposure: 0.75,
         }}
         onCreated={({ camera, scene }) => {
           camera.lookAt(...CAMERA_TARGET)
-          scene.fog = new THREE.Fog(BACKGROUND, 11, 24)
+          // An opaque background in exactly the page colour: the canvas then
+          // blends into the page with no visible edge.
+          scene.background = new THREE.Color(BACKGROUND)
+          scene.fog = new THREE.Fog(BACKGROUND, 14, 30)
         }}
       >
-        <FitCamera />
-        <RingEnvironment />
+        <StudioEnvironment />
         <SceneLighting carousel={LIGHT_STATE} />
-        <Stars radius={60} depth={40} count={900} factor={2.2} saturation={0} fade speed={0.25} />
-        <OrbitLine />
         <TextureWarmup queue={queue.current} />
-        <MotionDriver motion={motion.current} />
-        <SelectionWatcher motion={motion.current} count={carts.length} onSelect={onSelect} />
+        <DriftDriver motion={motion.current} />
+        <SelectionWatcher motion={motion.current} onSelect={onSelect} onIndex={onIndex} />
         {carts.map((cart, index) => (
-          <RingCartridge
+          <LineCartridge
             key={cart.id}
             cart={cart}
             index={index}
@@ -444,7 +443,7 @@ export default function CartridgeRing({ carts, controlRef, onSelect, onProgress 
           />
         ))}
         <EffectComposer>
-          <Bloom mipmapBlur intensity={0.28} luminanceThreshold={0.9} luminanceSmoothing={0.2} radius={0.6} />
+          <Bloom mipmapBlur intensity={0.09} luminanceThreshold={0.97} luminanceSmoothing={0.14} radius={0.5} />
         </EffectComposer>
       </Canvas>
     </div>

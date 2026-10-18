@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 :root {
   --paper: #fafbf8;
@@ -557,12 +557,6 @@ textarea.text-input { resize: vertical; line-height: 1.6; }
   .game-meta { font-size: 7px; }
 }
 /* The frame owns its fill, while the original child keeps its typography. */
-.metal-fx-root:has(.library-button) { background: #f4f5ef !important; }
-.metal-fx-root:has(.library-button:hover) { background: #e9eee2 !important; }
-.metal-fx-root:has(.primary-button), .metal-fx-root:has(.search-submit) { background: #414c35 !important; }
-.metal-fx-root:has(.primary-button:hover), .metal-fx-root:has(.search-submit:hover) { background: #5b6b4b !important; }
-.metal-fx-root:has(.saved-primary) { background: #eaf2df !important; }
-.metal-fx-root:focus-within { outline: 2px solid #819669; outline-offset: 3px; }
 .header-actions .mobile-menu-button { display: none; }
 .hero-visual { background: linear-gradient(180deg, #b8beb4, #bdc3b7); }
 .hero-visual > img { object-fit: contain; object-position: 65% center; }

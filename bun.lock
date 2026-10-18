@@ -12,7 +12,6 @@
         "dotenv": "17.3.1",
         "drizzle-orm": "0.45.2",
         "lucide-react": "^1.49.0",
-        "metal-fx": "^2.0.11",
         "next": "16.2.6",
         "pg": "8.20.0",
         "react": "19.2.6",
@@ -809,8 +808,6 @@
     "meshline": ["meshline@3.3.1", "", { "peerDependencies": { "three": ">=0.137" } }, "sha512-/TQj+JdZkeSUOl5Mk2J7eLcYTLiQm2IDzmlSvYm7ov15anEcDJ92GHqqazxTSreeNgfnYu24kiEvvv0WlbCdFQ=="],
 
     "meshoptimizer": ["meshoptimizer@1.1.1", "", {}, "sha512-oRFNWJRDA/WTrVj7NWvqa5HqE1t9MYDj2VaWirQCzCCrAd2GHrqR/sQezCxiWATPNlKTcRaPRHPJwIRoPBAp5g=="],
-
-    "metal-fx": ["metal-fx@2.0.11", "", { "peerDependencies": { "react": ">=18.0.0", "react-dom": ">=18.0.0" } }, "sha512-BdAdXXmJmqVbPxwjb3mN5TmS9r1+fde4RhGdK6In3ktT53/oLNFIwM2idRxR9KmVCa+7Yod1i0tR9nljsfLH1g=="],
 
     "micromatch": ["micromatch@4.0.8", "", { "dependencies": { "braces": "^3.0.3", "picomatch": "^2.3.1" } }, "sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA=="],
 
