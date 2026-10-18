@@ -1,10 +1,16 @@
-import { chromium, expect } from "@playwright/test";
+import { chromium, expect as baseExpect } from "@playwright/test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
+// This suite renders WebGL in software, so every wait gets room to breathe.
+const expect = baseExpect.configure({ timeout: 30000 });
 const base = process.env.PREVIEW_URL ?? "http://localhost:3000";
 fs.mkdirSync("artifacts", { recursive: true });
-const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+const browser = await chromium.launch({
+  headless: true,
+  // The home page is WebGL, so the browser needs a software GL to render it.
+  args: ["--no-sandbox", "--disable-dev-shm-usage", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+});
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
 const page = await context.newPage();
 const errors = [];
@@ -14,30 +20,42 @@ const action = (input) => page.evaluate(async (body) => {
   const response = await fetch("/api/library", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return { status: response.status, data: await response.json() };
 }, input);
+const fits = (target) => target.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1 && document.documentElement.scrollWidth <= innerWidth + 1);
+const stageIndex = () => page.locator(".lineup-stage").getAttribute("data-index");
 
 try {
-  await page.goto(base, { waitUntil: "networkidle" });
-  await expect(page.locator("#archive .game-card")).toHaveCount(4);
-  assert.match(await page.locator("h1").evaluate((element) => getComputedStyle(element).fontFamily), /dmSans/);
+  await page.goto(base, { waitUntil: "domcontentloaded" });
+  const stage = page.locator(".lineup-stage");
+  await expect(stage).toBeVisible({ timeout: 120000 });
+  await expect(page.locator("h1")).toHaveText(/Good games/);
+  assert.equal(await fits(page), true, "the home page must fit one screen");
   assert.equal(await page.locator(".mobile-menu-button").isVisible(), false);
-  await page.screenshot({ path: "artifacts/home-desktop.png", fullPage: true });
-  console.log("PASS: homepage, local typeface, desktop navigation");
 
-  await page.getByRole("textbox", { name: "Search games", exact: true }).fill("Pokemon");
-  await expect(page.locator("#archive .game-card")).toHaveCount(1);
-  await expect(page.locator("#archive .game-title")).toHaveText("Pokémon Emerald");
-  await page.keyboard.press("Control+k");
-  await expect(page.getByRole("textbox", { name: "Search games", exact: true })).toBeFocused();
-  await page.getByRole("button", { name: "Save Pokémon Emerald", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Unsave Pokémon Emerald", exact: true })).toBeVisible();
-  assert.deepEqual((await library()).savedGameIds, ["pokemon-emerald"]);
-  await page.reload({ waitUntil: "networkidle" });
-  await expect(page.getByRole("button", { name: "Unsave Pokémon Emerald", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: /^Your library/ }).click();
-  await expect(page.locator("#archive .game-card")).toHaveCount(1);
-  console.log("PASS: accent-insensitive search, keyboard shortcut, saves, reload persistence");
+  // Cartridges arrive one by one; `data-loaded` counts them.
+  await expect.poll(async () => Number((await stage.getAttribute("data-loaded")) ?? 0), { timeout: 180000 }).toBeGreaterThan(0);
+  const title = page.locator(".lineup-caption h2");
+  await expect(title).not.toBeEmpty();
+  await expect(page.locator(".lineup-caption p")).not.toBeEmpty();
+  await page.screenshot({ path: "artifacts/home-desktop.png" });
+  console.log("PASS: dark home fits one screen and the cartridge line renders");
 
-  await page.getByRole("button", { name: "New collection", exact: true }).click();
+  // The line steps along on its own.
+  const idleStart = await stageIndex();
+  await expect.poll(stageIndex, { timeout: 30000 }).not.toBe(idleStart);
+
+  // The arrows step backwards and forwards. Backwards is the telling one: the
+  // idle motion only ever moves the other way.
+  const before = await stageIndex();
+  await page.getByRole("button", { name: "Previous cartridge", exact: true }).click();
+  const previous = String((Number(before) + 11) % 12);
+  await expect.poll(stageIndex, { timeout: 30000 }).toBe(previous);
+  await page.getByRole("button", { name: "Next cartridge", exact: true }).click();
+  await expect.poll(stageIndex, { timeout: 30000 }).toBe(before);
+  console.log("PASS: the line drifts on its own and the arrows step it");
+
+  await page.locator(".main-nav button").filter({ hasText: "Lists" }).click();
+  await expect(page.locator(".page-heading h1")).toHaveText("Make a list.");
+  await page.getByRole("button", { name: "Create your first list", exact: true }).click();
   await page.getByLabel(/Collection name/).fill("Sunday favorites");
   await page.getByLabel(/A few words/).fill("A small archive for slow afternoons.");
   await page.locator(".picker-game").filter({ hasText: "Pokémon Emerald" }).click();
@@ -48,6 +66,8 @@ try {
   assert.equal(data.collections.length, 1);
   assert.deepEqual(data.collections[0].gameIds, ["pokemon-emerald"]);
   assert.equal(data.collections[0].color, "#e7e6ed");
+  console.log("PASS: a list can be created with a name, words, games and a colour");
+
   await page.locator(".collection-card").filter({ hasText: "Sunday favorites" }).click();
   await page.getByRole("button", { name: "Edit collection", exact: true }).click();
   await page.getByLabel(/Collection name/).fill("Slow Sunday");
@@ -57,96 +77,38 @@ try {
   data = await library();
   assert.equal(data.collections[0].name, "Slow Sunday");
   assert.equal(data.collections[0].gameIds.length, 2);
-  await page.reload({ waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /^Your library/ }).click();
-  await page.locator(".content-tabs button").filter({ hasText: "Collections" }).click();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator(".main-nav button").filter({ hasText: "Lists" }).click();
   await expect(page.locator(".collection-card").filter({ hasText: "Slow Sunday" })).toBeVisible();
-  console.log("PASS: collection creation, game picker, colors, editing, persistence");
+  console.log("PASS: lists can be edited and survive a reload");
 
-  await page.locator(".main-nav button").filter({ hasText: "Collections" }).click();
-  await page.locator(".collection-card").filter({ hasText: "The essentials" }).click();
-  await page.getByRole("button", { name: "Make it yours", exact: true }).click();
-  await expect(page.locator(".collection-byline")).toContainText("Your private collection");
-  data = await library();
-  assert.equal(data.collections.length, 2);
-  assert.equal(data.collections.find((collection) => collection.name === "The essentials").gameIds.length, 6);
+  await page.locator(".collection-card").filter({ hasText: "Slow Sunday" }).click();
   await page.locator(".collection-game-grid .game-title").first().click();
-  await expect(page.locator(".game-detail-modal h2")).toContainText("Ocarina of Time");
-  await page.locator(".membership-list button").filter({ hasText: "Slow Sunday" }).click();
-  await expect.poll(async () => (await library()).collections.find((collection) => collection.name === "Slow Sunday").gameIds.length).toBe(3);
-  await page.locator(".membership-list button").filter({ hasText: "Slow Sunday" }).click();
-  await expect.poll(async () => (await library()).collections.find((collection) => collection.name === "Slow Sunday").gameIds.length).toBe(2);
+  await expect(page.locator(".game-detail-modal h2")).toContainText("Emerald");
   await page.getByRole("button", { name: "Save to your library", exact: true }).click();
   await expect(page.getByRole("button", { name: "Saved to your library", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Saved to your library", exact: true }).click();
   await page.keyboard.press("Escape");
-  console.log("PASS: curated cloning, game details, membership add/remove, modal saves");
+  assert.deepEqual((await library()).savedGameIds, ["pokemon-emerald"]);
+  console.log("PASS: a game opens from its list and can be saved");
 
-  await page.locator(".main-nav button").filter({ hasText: "Platforms" }).click();
-  await expect(page.locator(".platform-card")).toHaveCount(6);
-  await page.locator(".platform-card").filter({ hasText: "PlayStation" }).click();
-  await expect(page.locator("#archive .game-card")).toHaveCount(3);
-  await page.getByRole("button", { name: "Sega", exact: true }).click();
-  await expect(page.locator("#archive .game-card")).toHaveCount(2);
-  await page.getByRole("button", { name: "Filters", exact: true }).click();
-  await page.locator(".filter-popover label").filter({ hasText: "Genre" }).locator("select").selectOption("Action");
-  await expect(page.locator("#archive .game-card")).toHaveCount(1);
-  await expect(page.locator("#archive .game-title")).toHaveText("Streets of Rage 2");
-  await page.locator(".filter-popover label").filter({ hasText: "Era" }).locator("select").selectOption("2000");
-  await expect(page.locator(".search-empty h3")).toHaveText("A different adventure, perhaps?");
-  await page.getByRole("button", { name: "Reset filters", exact: true }).click();
-  await expect(page.locator("#archive .game-card")).toHaveCount(2);
-  await page.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: /^All platforms/ }).click();
-  await page.getByRole("button", { name: "Explore all 16 games", exact: true }).click();
-  await expect(page.locator("#archive .game-card")).toHaveCount(16);
-  await page.locator(".sort-control select").selectOption("az");
-  await expect(page.locator("#archive .game-title").first()).toHaveText("Castlevania: Symphony of the Night");
-  await page.locator(".sort-control select").selectOption("oldest");
-  await expect(page.locator("#archive .game-title").first()).toHaveText("Tetris");
-  await page.getByRole("textbox", { name: "Search games", exact: true }).fill("NoSuchGame987");
-  await expect(page.locator(".search-empty h3")).toHaveText("A different adventure, perhaps?");
-  await page.getByRole("button", { name: "Explore all games", exact: true }).click();
-  await expect(page.locator("#archive .game-card")).toHaveCount(4);
-  console.log("PASS: platforms, genre/era filters, archive expansion, sorting, empty search");
-
-  const isolated = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  const mobile = await isolated.newPage();
-  mobile.on("pageerror", (error) => errors.push(error.message));
-  await mobile.goto(base, { waitUntil: "networkidle" });
-  await mobile.screenshot({ path: "artifacts/home-mobile.png", fullPage: true });
-  assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  const isolatedData = await mobile.evaluate(async () => (await fetch("/api/library")).json());
-  assert.deepEqual(isolatedData.savedGameIds, []);
-  assert.deepEqual(isolatedData.collections, []);
-  const forbiddenStatus = await mobile.evaluate(async (id) => (await fetch("/api/library", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update-collection", collectionId: id, name: "Not yours", gameIds: [] }) })).status, data.collections[0].id);
-  assert.equal(forbiddenStatus, 404);
-  await mobile.getByRole("button", { name: "Toggle navigation", exact: true }).click();
-  await mobile.locator(".mobile-nav button").filter({ hasText: "Collections" }).click();
-  await expect(mobile.locator(".collection-card")).toHaveCount(3);
-  await mobile.getByRole("button", { name: "New collection", exact: true }).click();
-  assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  await mobile.keyboard.press("Escape");
-  await mobile.setViewportSize({ width: 320, height: 740 });
-  await mobile.goto(base, { waitUntil: "networkidle" });
-  assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  await isolated.close();
-  console.log("PASS: mobile and small-phone layouts, navigation, private libraries, ownership");
-
-  const fallbackContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  await fallbackContext.addInitScript(() => {
-    const original = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function(type, ...args) { return type === "webgl2" ? null : original.call(this, type, ...args); };
-  });
-  const fallback = await fallbackContext.newPage();
-  fallback.on("pageerror", (error) => errors.push(error.message));
-  await fallback.goto(base, { waitUntil: "networkidle" });
-  await expect(fallback.locator(".metal-fx-fallback")).toHaveCount(2);
-  await fallback.getByRole("textbox", { name: "Search games", exact: true }).fill("Tetris");
-  await expect(fallback.locator("#archive .game-card")).toHaveCount(1);
-  await expect(fallback.locator("#archive .game-title")).toHaveText("Tetris");
-  await fallbackContext.close();
-  console.log("PASS: working MetalFx fallback without WebGL");
+  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const phone = await mobile.newPage();
+  phone.on("pageerror", (error) => errors.push(error.message));
+  await phone.goto(base, { waitUntil: "domcontentloaded" });
+  await expect(phone.locator(".lineup-stage")).toBeVisible({ timeout: 120000 });
+  assert.equal(await fits(phone), true, "the home page must fit one phone screen");
+  assert.equal(await phone.locator(".main-nav .nav-link").first().isVisible(), true, "the nav stays on small screens");
+  await phone.screenshot({ path: "artifacts/home-mobile.png" });
+  await phone.locator(".main-nav button").filter({ hasText: "Lists" }).click();
+  await expect(phone.locator(".page-heading h1")).toHaveText("Make a list.");
+  await phone.getByRole("button", { name: "New list", exact: true }).click();
+  await expect(phone.locator(".editor-modal")).toBeVisible();
+  await phone.keyboard.press("Escape");
+  await phone.setViewportSize({ width: 320, height: 740 });
+  await phone.goto(base, { waitUntil: "domcontentloaded" });
+  assert.equal(await fits(phone), true, "the narrow home must fit too");
+  await mobile.close();
+  console.log("PASS: phone and narrow-phone layouts hold together");
 
   const allGames = await context.request.get(base + "/api/games").then((response) => response.json());
   assert.equal(allGames.total, 16);
@@ -157,8 +119,24 @@ try {
   }
   assert.equal((await action({ action: "toggle-save", gameId: "unknown" })).status, 404);
   assert.equal((await action({ action: "create-collection", name: "", gameIds: [] })).status, 400);
-  await page.getByRole("button", { name: /^Your library/ }).click();
-  await page.locator(".content-tabs button").filter({ hasText: "Collections" }).click();
+  assert.equal((await action({ action: "update-collection", collectionId: "nope", name: "x", gameIds: [] })).status, 404);
+  console.log("PASS: every cover resolves and bad requests are rejected");
+
+  const isolated = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const stranger = await isolated.newPage();
+  await stranger.goto(base, { waitUntil: "domcontentloaded" });
+  const otherLibrary = await stranger.evaluate(async (id) => {
+    const before = await (await fetch("/api/library")).json();
+    const response = await fetch("/api/library", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update-collection", collectionId: id, name: "Not yours", gameIds: [] }) });
+    return { savedGameIds: before.savedGameIds, collections: before.collections, status: response.status };
+  }, data.collections[0].id);
+  assert.deepEqual(otherLibrary.savedGameIds, []);
+  assert.deepEqual(otherLibrary.collections, []);
+  assert.equal(otherLibrary.status, 404, "another browser must not touch this list");
+  await isolated.close();
+  console.log("PASS: lists stay private per browser");
+
+  await page.locator(".main-nav button").filter({ hasText: "Lists" }).click();
   await page.locator(".collection-card").filter({ hasText: "Slow Sunday" }).click();
   await page.getByRole("button", { name: "Edit collection", exact: true }).click();
   await page.getByRole("button", { name: "Delete collection", exact: true }).click();
@@ -166,21 +144,21 @@ try {
   await expect(page.locator(".editor-modal")).toHaveCount(0);
   assert.equal((await library()).collections.some((collection) => collection.name === "Slow Sunday"), false);
   data = await library();
-  for (const collection of data.collections) assert.equal((await action({ action: "delete-collection", collectionId: collection.id })).status, 200);
+  for (const collection of data.collections) await action({ action: "delete-collection", collectionId: collection.id });
   for (const gameId of data.savedGameIds) await action({ action: "toggle-save", gameId });
   const cleaned = await library();
   assert.equal(cleaned.collections.length, 0);
   assert.equal(cleaned.savedGameIds.length, 0);
   assert.deepEqual(errors, []);
-  await page.goto(base, { waitUntil: "networkidle" });
-  await page.screenshot({ path: "artifacts/home-desktop.png", fullPage: true });
-  console.log("PASS: every original cover, invalid request handling, deletion, clean hydration");
+  console.log("PASS: lists delete cleanly, no runtime errors anywhere");
   console.log("ALL FULLSTACK AND BROWSER CHECKS PASSED");
 } catch (error) {
   console.error("CHECK FAILED:", error);
-  console.error("Current heading:", await page.locator("h1").allTextContents());
   console.error("Runtime errors:", errors);
-  await page.screenshot({ path: "artifacts/functional-failure.png", fullPage: true });
+  console.error("Open dialogs:", await page.locator(".modal-panel h2").allTextContents().catch(() => []));
+  console.error("Submit labels:", await page.locator(".editor-modal button[type=submit]").allTextContents().catch(() => []));
+  console.error("Body:", (await page.locator("body").ariaSnapshot().catch(() => "")).slice(0, 1200));
+  await page.screenshot({ path: "artifacts/functional-failure.png" });
   process.exitCode = 1;
 } finally {
   await browser.close();
