@@ -1,0 +1,282 @@
+/* Dark zen theme. Loads after globals.css, so these rules win. */
+
+:root {
+  --paper: #07080a;
+  --ink: #eef1f5;
+  --muted: #7d8491;
+  --green: #aab7d6;
+  --line: #1e232c;
+}
+
+body {
+  background: #07080a;
+  color: #eef1f5;
+}
+::selection { background: #2a3140; color: #f4f6f8; }
+
+h1, h2, h3, p { color: inherit; }
+
+/* ---------- shell ---------- */
+
+.app-shell { background: #07080a; min-height: 100dvh; }
+
+/* The home page is a single screen: it never scrolls. */
+.app-shell.is-home {
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.app-shell.is-home .main-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+
+/* ---------- header ---------- */
+
+.site-header { background: transparent; border-bottom: 1px solid #14181f; height: 72px; }
+.header-inner { height: 72px; }
+.brand { color: #eef1f5; }
+.brand-domain { color: #6b7280; }
+.brand-mark i { background: #aab4c8; }
+.brand-mark i:last-child { background: #4a5263; }
+.main-nav { gap: 22px; }
+.nav-link { color: #7d8491; background: none; border: 0; padding: 0; font-size: 12.5px; display: inline-flex; align-items: center; gap: 7px; }
+.nav-link:hover { color: #cfd6e2; }
+.nav-link.active { color: #eef1f5; }
+.nav-link.active::after { background: #aab4c8; }
+.nav-count { background: #1f2430; color: #c9d0dc; border-radius: 999px; padding: 1px 7px; font-size: 9px; }
+
+/* ---------- home: copy ---------- */
+
+.home-hero {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 26px 0 0;
+}
+.home-copy { flex: none; }
+.home-hero .eyebrow { font-size: 9.5px; letter-spacing: 2.6px; color: #6b7280; font-weight: 500; }
+.home-hero h1 {
+  margin: 18px 0 0;
+  font-size: clamp(30px, 3.6vw, 46px);
+  line-height: 1.08;
+  letter-spacing: -1.9px;
+  font-weight: 500;
+  color: #f2f4f7;
+}
+.home-hero h1 span { color: #7b8390; }
+
+/* ---------- home: the lineup ---------- */
+
+.lineup-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin-top: 6px;
+  /* Fades the line out at both ends so cartridges never touch the edge. */
+  mask-image: linear-gradient(to right, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 22%, #000 78%, transparent 100%);
+}
+.lineup-stage {
+  position: absolute;
+  inset: 0;
+  outline: none;
+  /* The page never scrolls, so a swipe on the line is the line's own gesture. */
+  touch-action: none;
+  cursor: grab;
+}
+.lineup-stage:active { cursor: grabbing; }
+.lineup-stage:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.18); outline-offset: -1px; }
+.lineup-stage canvas { display: block; width: 100%; height: 100%; }
+.lineup-loading { position: absolute; inset: 0; }
+
+/* Quiet placeholder dots while the 3D loads; they dissolve as cartridges arrive. */
+.lineup-skeleton {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(40px, 9vw, 130px);
+  pointer-events: none;
+  transition: opacity 0.7s ease;
+}
+.lineup-skeleton.is-hidden { opacity: 0; }
+.lineup-skeleton-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(170, 180, 206, 0.55);
+  animation: lineup-pulse 2.1s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.14s);
+}
+.lineup-skeleton-dot:nth-child(odd) { transform: translateY(-34px); }
+.lineup-skeleton-dot:nth-child(even) { transform: translateY(30px); }
+@keyframes lineup-pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.85; }
+}
+
+/* ---------- home: the title row ---------- */
+
+.lineup-hud {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  padding: 4px 0 30px;
+}
+.lineup-caption { min-width: 320px; text-align: center; }
+.lineup-caption h2 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.4px;
+  color: #eef1f5;
+  animation: lineup-caption-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.lineup-caption p {
+  margin: 7px 0 0;
+  font-size: 9.5px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+.lineup-arrow {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid #21262f;
+  background: #0c0e13;
+  color: #cfd5de;
+  font-size: 15px;
+  display: grid;
+  place-items: center;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.lineup-arrow:hover:not(:disabled) { border-color: #4a5263; color: #ffffff; }
+.lineup-arrow:disabled { opacity: 0.3; cursor: default; }
+
+@keyframes lineup-caption-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- lists ---------- */
+
+.main-content { padding-bottom: 90px; }
+.page-heading { padding: 40px 0 34px; }
+.page-heading .eyebrow { color: #6b7280; }
+.page-heading h1 { color: #eef1f5; }
+.page-heading p { color: #7d8491; }
+
+.primary-button { border-color: #2b3345; background: #1d2330; color: #eef1f5; }
+.primary-button:hover { background: #29313f; }
+.secondary-button { border-color: #262b35; background: #0d0f14; color: #c3cad6; }
+.secondary-button:hover { background: #171b23; border-color: #343b4b; }
+.text-button { color: #aab7d6; }
+.text-button:hover { color: #eef1f5; }
+
+.empty-state { background: #0d0f14; border-color: #1b1f27; color: #7d8491; }
+.empty-state h3 { color: #d6dce6; }
+.empty-state p { color: #7d8491; }
+.empty-footnote { color: #5f6672; }
+.library-loading { color: #7d8491; }
+
+.collection-art { border-color: #1b1f27; }
+.collection-info h3 { color: #d6dce6; }
+.collection-info p { color: #6b7280; }
+.collection-count { color: #6b7280; }
+.collection-arrow { border-color: #2b3345; background: #0d0f1499; color: #c3cad6; }
+.create-collection-card { border-color: #262b35; background: #0c0e13; color: #8b93a1; }
+.create-collection-card > span { background: #14171d; }
+.create-collection-card:hover { border-color: #3d4759; background: #11141a; }
+.empty-collection-icon { color: #4a5263; }
+
+/* ---------- dialogs ---------- */
+
+.modal-backdrop { background: #050609b8; }
+.modal-panel { background: #0f1218; border-color: #232833; box-shadow: 0 40px 90px #000000a8; }
+.modal-close { background: #14171db3; border-color: #262b35; color: #9aa3b2; }
+.modal-close:hover { background: #1b1f27; }
+.modal-heading h2 { color: #eef1f5; }
+.modal-heading p { color: #7d8491; }
+
+.detail-art { color: inherit; }
+.detail-art > .eyebrow { color: #6b7280; }
+.detail-art-caption { color: #5f6672; }
+.detail-art > img { filter: drop-shadow(4px 13px 14px #00000073); }
+.detail-kicker { color: #6b7280; }
+.detail-content h2 { color: #eef1f5; }
+.detail-description { color: #939baa; }
+.game-facts { border-bottom-color: #1e232c; }
+.game-facts dt { color: #6b7280; }
+.game-facts dd { color: #c3cad6; }
+
+.collection-detail-hero h2 { color: #eef1f5; }
+.collection-detail-hero p { color: #939baa; }
+.collection-byline { color: #6b7280; }
+.collection-detail-toolbar { color: #7d8491; }
+.collection-color-dot { border-color: #2b3345; }
+
+.add-to-collection,
+.detail-actions { border-top-color: #1e232c; }
+.subsection-label { color: #7d8491; }
+.membership-list button { border-color: #242a35; color: #c3cad6; background: #0d0f14; }
+.membership-list button.is-member { background: #1b2130; border-color: #35405a; color: #cfd6e2; }
+.membership-list .new-membership { border-style: dashed; }
+.preservation-note { background: #0d0f14; color: #7d8491; }
+
+.field-label { color: #8b93a1; }
+.field-label > span { color: #5f6672; }
+.text-input { border-color: #242a35; background: #0b0d11; color: #e6eaf0; }
+.text-input::placeholder { color: #5f6672; }
+.text-input:focus { border-color: #3d4759; box-shadow: 0 0 0 3px #3d475933; }
+.color-swatch { border-color: #2b3345; color: #c3cad6; }
+.color-swatch.selected { outline-color: #6b7a99; }
+
+.picker-search { border-color: #242a35; color: #7d8491; }
+.picker-search input { color: #e6eaf0; background: none; }
+.picker-search input::placeholder { color: #5f6672; }
+.game-picker { scrollbar-color: #2b3345 transparent; }
+.picker-game { border-color: #1e232c; }
+.picker-game:hover { background: #14171d; }
+.picker-check { color: #aab7d6; }
+.picker-empty { color: #6b7280; }
+.delete-confirm { background: #1a1212; color: #e4b8b0; border-color: #3a2424; }
+.editor-footer { border-top-color: #1e232c; }
+
+/* ---------- toast ---------- */
+
+.toast { background: #12151b; border-color: #262b35; color: #d6dce6; }
+.toast-check { background: #1c2430; color: #aab7d6; }
+.toast > button { color: #8b93a1; }
+.toast.error { background: #1a1212; color: #e4b8b0; border-color: #3a2424; }
+
+/* ---------- small screens ---------- */
+
+@media (max-width: 700px) {
+  /* globals.css hides the nav here and expects a mobile menu; there are only
+     two links now, so they stay. */
+  .main-nav { display: flex; gap: 18px; }
+  .main-nav .nav-link { font-size: 12px; }
+  .home-hero { padding-top: 16px; }
+  .home-hero h1 { margin-top: 13px; letter-spacing: -1.2px; }
+  .lineup-hud { gap: 14px; padding-bottom: 22px; }
+  .lineup-caption { min-width: 0; flex: 1; }
+  .lineup-caption h2 { font-size: 17px; }
+  .lineup-arrow { width: 44px; height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lineup-caption h2, .lineup-skeleton-dot { animation: none; }
+}
