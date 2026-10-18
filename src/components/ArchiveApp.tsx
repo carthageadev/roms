@@ -66,10 +66,6 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
     }
   }
 
-  function romPayload(game: Game) {
-    return { id: game.id, title: game.title, platform: game.platform, platformName: game.platformName, year: game.year, genre: game.genre, developer: game.developer, description: game.description, color: game.color, accent: game.accent };
-  }
-
   function findKnownGame(id: string): Game | null {
     return listedGames.find((game) => game.id === id) ?? (selectedGame?.id === id ? selectedGame : null);
   }
@@ -77,14 +73,9 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
   async function toggleSave(game: Game) {
     if (!libraryReady || busy) return;
     const wasSaved = library.savedGameIds.includes(game.id);
-    const input: Record<string, unknown> = game.id.startsWith("rom-") ? { action: "toggle-save", gameId: game.id, game: romPayload(game) } : { action: "toggle-save", gameId: game.id };
     try {
-      const data = (await mutateLibrary(input)) as Library & { game?: Game };
-      if (data.game) {
-        const kept = data.game;
-        setListedGames((current) => (current.some((item) => item.id === kept.id) ? current.map((item) => (item.id === kept.id ? kept : item)) : [...current, kept]));
-        if (selectedGame?.id === kept.id) setSelectedGame(kept);
-      }
+      const data = (await mutateLibrary({ action: "toggle-save", gameId: game.id })) as Library & { games?: Game[] };
+      if (Array.isArray(data.games)) setListedGames(data.games);
       notify(wasSaved ? "Removed from your saved games" : "Saved. Keep the good ones close.");
     } catch {
       // The toast already reports the failure.
@@ -94,8 +85,7 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
   async function submitCollection(input: CollectionInput) {
     try {
       const payload: Record<string, unknown> = { action: editor?.collection ? "update-collection" : "create-collection", collectionId: editor?.collection?.id, ...input };
-      const romGame = editor?.gameId && editor.gameId.startsWith("rom-") ? findKnownGame(editor.gameId) : null;
-      const data = (await mutateLibrary(romGame ? { ...payload, games: [romPayload(romGame)] } : payload)) as Library & { games?: Game[] };
+      const data = (await mutateLibrary(payload)) as Library & { games?: Game[] };
       if (Array.isArray(data.games)) setListedGames(data.games);
       notify(editor?.collection ? "Your list, a little more you." : "Your new list is ready.");
       setEditor(null);
@@ -122,10 +112,7 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
     if (!selectedGame) return;
     const alreadyIn = library.collections.find((collection) => collection.id === collectionId)?.gameIds.includes(selectedGame.id);
     try {
-      const input: Record<string, unknown> = selectedGame.id.startsWith("rom-")
-        ? { action: "toggle-collection-game", collectionId, gameId: selectedGame.id, game: romPayload(selectedGame) }
-        : { action: "toggle-collection-game", collectionId, gameId: selectedGame.id };
-      await mutateLibrary(input);
+      await mutateLibrary({ action: "toggle-collection-game", collectionId, gameId: selectedGame.id });
       notify(alreadyIn ? "Removed from the list" : "Added to the list. Good company.");
     } catch {
       // The toast already reports the failure.

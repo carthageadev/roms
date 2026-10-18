@@ -120,7 +120,14 @@ try {
   assert.equal((await action({ action: "toggle-save", gameId: "unknown" })).status, 404);
   assert.equal((await action({ action: "create-collection", name: "", gameIds: [] })).status, 400);
   assert.equal((await action({ action: "update-collection", collectionId: "nope", name: "x", gameIds: [] })).status, 404);
-  console.log("PASS: every cover resolves and bad requests are rejected");
+  // There is no ROM index behind the archive: nothing outside the catalog can
+  // be saved or listed, however complete the payload looks.
+  const indexGone = await context.request.get(base + "/api/roms?q=mario");
+  assert.equal(indexGone.status(), 404);
+  assert.equal((await action({ action: "toggle-save", gameId: "rom-0123456789ab", game: { id: "rom-0123456789ab", title: "Anything", platform: "nes", platformName: "NES", genre: "x", developer: "x", description: "x", color: "#fff", accent: "#000" } })).status, 404);
+  assert.equal((await action({ action: "create-collection", name: "Real roms", gameIds: ["rom-0123456789ab"] })).status, 400);
+  assert.equal((await library()).collections.some((collection) => collection.name === "Real roms"), false);
+  console.log("PASS: every cover resolves, bad requests rejected, no ROM index");
 
   const isolated = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const stranger = await isolated.newPage();
