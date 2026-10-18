@@ -50,7 +50,7 @@ export const MODELS = {
 
 export const PLATFORM_ORDER = ['n64', 'gba', '3ds', 'switch']
 
-export const RING_SIZE = 12
+export const LINEUP_SIZE = 12
 
 export const PLATFORM_NAMES = {
   n64: 'Nintendo 64',
@@ -68,6 +68,7 @@ export const FAVORITE_TITLES = {
 }
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)]
+const between = (min, max) => min + Math.random() * (max - min)
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -77,12 +78,13 @@ function shuffle(list) {
   return list
 }
 
-// A fresh random ring each visit: shuffled system order, a random favourite
-// per cartridge, and a random shell finish, casing tint and float phase.
-export function buildRing() {
+// A staggered lineup, reshuffled every visit: a random system order, a random
+// favourite per cartridge, and a random finish, tint, height and tilt.
+// `row` alternates the height so the line reads as staggered, not straight.
+export function buildLineup() {
   const finishes = ['default', 'translucent', 'glitter', 'metallic']
   const casings = [null, '#e6ebf2', '#f1dccb', '#d2e4d6', '#2b2f37', '#d8cbee']
-  const perSystem = RING_SIZE / PLATFORM_ORDER.length
+  const perSystem = LINEUP_SIZE / PLATFORM_ORDER.length
   const platforms = shuffle(PLATFORM_ORDER.flatMap((platform) => Array(perSystem).fill(platform)))
   return platforms.map((platform, index) => ({
     id: `${platform}-${index}`,
@@ -91,6 +93,10 @@ export function buildRing() {
     title: pick(FAVORITE_TITLES[platform]),
     finish: pick(finishes),
     casing: pick(casings),
+    row: index % 2 === 0 ? 1 : -1,
+    depth: (index % 3) - 1,
+    lift: between(-0.14, 0.14),
+    tilt: between(-0.05, 0.05),
     phase: Math.random() * Math.PI * 2,
   }))
 }
