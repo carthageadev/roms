@@ -31,8 +31,9 @@ function hueOf(text: string): number {
   return hash % 360;
 }
 
-export function labelArt(title: string, platformName: string): string {
-  const key = `${platformName}|${title}`;
+export function labelArt(title: string, platformName: string, aspect = 1): string {
+  const ratio = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+  const key = `${platformName}|${title}|${ratio}`;
   const hit = cache.get(key);
   if (hit) return hit;
   if (typeof document === "undefined") return "";
@@ -83,6 +84,22 @@ export function labelArt(title: string, platformName: string): string {
   ctx.fillStyle = "rgba(35,38,44,0.45)";
   ctx.font = "500 18px 'Geist Mono', ui-monospace, monospace";
   ctx.fillText(platformName.toUpperCase().slice(0, 36), 36, H - 40);
+
+  // The label face is not square on any of the models, so crop the art to the
+  // same aspect the real covers are baked at instead of letting it stretch.
+  if (Math.abs(ratio - 1) > 0.01) {
+    const outWidth = Math.round(ratio >= 1 ? W : W * ratio);
+    const outHeight = Math.round(ratio >= 1 ? W / ratio : H);
+    const out = document.createElement("canvas");
+    out.width = outWidth;
+    out.height = outHeight;
+    const outCtx = out.getContext("2d");
+    if (!outCtx) return "";
+    outCtx.drawImage(canvas, (W - outWidth) / 2, (H - outHeight) / 2, outWidth, outHeight, 0, 0, outWidth, outHeight);
+    const cropped = out.toDataURL("image/png");
+    cache.set(key, cropped);
+    return cropped;
+  }
 
   const url = canvas.toDataURL("image/png");
   cache.set(key, url);

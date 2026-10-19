@@ -22,6 +22,18 @@ const action = (input) => page.evaluate(async (body) => {
 }, input);
 const fits = (target) => target.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1 && document.documentElement.scrollWidth <= innerWidth + 1);
 const stageIndex = () => page.locator(".lineup-stage").getAttribute("data-index");
+// The navigation is the corner gate: open it, then pick the destination.
+const openGate = async (target, label) => {
+  await target.getByRole("button", { name: "Open navigation", exact: true }).click();
+  // The gate fades in; pointing at one of its words before it settles is a race.
+  await target.waitForFunction(() => document.querySelector(".zen-gate")?.classList.contains("is-open") === true, null, { timeout: 60000 });
+  await target.waitForTimeout(700);
+  await target.locator(".zen-entry").filter({ hasText: label }).click();
+};
+// The app hydrates lazily: wait for the lineup to be alive before touching the nav.
+const lineupReady = (target) => expect
+  .poll(async () => Number((await target.locator(".lineup-stage").getAttribute("data-loaded")) ?? 0), { timeout: 180000 })
+  .toBeGreaterThan(0);
 
 try {
   await page.goto(base, { waitUntil: "domcontentloaded" });
@@ -29,10 +41,10 @@ try {
   await expect(stage).toBeVisible({ timeout: 120000 });
   await expect(page.locator("h1")).toHaveText(/Good games/);
   assert.equal(await fits(page), true, "the home page must fit one screen");
-  assert.equal(await page.locator(".mobile-menu-button").isVisible(), false);
+  assert.equal(await page.locator(".zen-trigger").isVisible(), true, "the corner gate is the navigation");
 
   // Cartridges arrive one by one; `data-loaded` counts them.
-  await expect.poll(async () => Number((await stage.getAttribute("data-loaded")) ?? 0), { timeout: 180000 }).toBeGreaterThan(0);
+  await lineupReady(page);
   const title = page.locator(".lineup-caption h2");
   await expect(title).not.toBeEmpty();
   await expect(page.locator(".lineup-caption p")).not.toBeEmpty();
@@ -53,7 +65,7 @@ try {
   await expect.poll(stageIndex, { timeout: 30000 }).toBe(before);
   console.log("PASS: the line drifts on its own and the arrows step it");
 
-  await page.locator(".main-nav button").filter({ hasText: "Lists" }).click();
+  await openGate(page, "Lists");
   await expect(page.locator(".page-heading h1")).toHaveText("Make a list.");
   await page.getByRole("button", { name: "Create your first list", exact: true }).click();
   await page.getByLabel(/Collection name/).fill("Sunday favorites");
@@ -78,7 +90,8 @@ try {
   assert.equal(data.collections[0].name, "Slow Sunday");
   assert.equal(data.collections[0].gameIds.length, 2);
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.locator(".main-nav button").filter({ hasText: "Lists" }).click();
+  await lineupReady(page);
+  await openGate(page, "Lists");
   await expect(page.locator(".collection-card").filter({ hasText: "Slow Sunday" })).toBeVisible();
   console.log("PASS: lists can be edited and survive a reload");
 
@@ -96,10 +109,11 @@ try {
   phone.on("pageerror", (error) => errors.push(error.message));
   await phone.goto(base, { waitUntil: "domcontentloaded" });
   await expect(phone.locator(".lineup-stage")).toBeVisible({ timeout: 120000 });
+  await lineupReady(phone);
   assert.equal(await fits(phone), true, "the home page must fit one phone screen");
-  assert.equal(await phone.locator(".main-nav .nav-link").first().isVisible(), true, "the nav stays on small screens");
+  assert.equal(await phone.locator(".zen-trigger").isVisible(), true, "the gate stays reachable on small screens");
   await phone.screenshot({ path: "artifacts/home-mobile.png" });
-  await phone.locator(".main-nav button").filter({ hasText: "Lists" }).click();
+  await openGate(phone, "Lists");
   await expect(phone.locator(".page-heading h1")).toHaveText("Make a list.");
   await phone.getByRole("button", { name: "New list", exact: true }).click();
   await expect(phone.locator(".editor-modal")).toBeVisible();
@@ -143,7 +157,7 @@ try {
   await isolated.close();
   console.log("PASS: lists stay private per browser");
 
-  await page.locator(".main-nav button").filter({ hasText: "Lists" }).click();
+  await openGate(page, "Lists");
   await page.locator(".collection-card").filter({ hasText: "Slow Sunday" }).click();
   await page.getByRole("button", { name: "Edit collection", exact: true }).click();
   await page.getByRole("button", { name: "Delete collection", exact: true }).click();

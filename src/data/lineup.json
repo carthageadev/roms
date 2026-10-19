@@ -1,0 +1,30 @@
+{
+  "labelFace": {
+    "n64": { "aspect": 0.85, "u": [0.0749, 0.9247], "v": [0.0001, 0.9999] },
+    "gba": { "aspect": 1.9247, "u": [0.0094, 0.9953], "v": [0.0054, 0.988] },
+    "nds": { "aspect": 0.9234, "u": [0.0061, 0.9971], "v": [0.0038, 0.9997] },
+    "switch": { "aspect": 0.7167, "u": [0.0028, 0.9967], "v": [0.0068, 0.996] }
+  },
+  "titles": {
+    "n64": [
+      { "title": "Super Mario 64", "cover": "/images/labels/super-mario-64.png" },
+      { "title": "The Legend of Zelda: Ocarina of Time", "cover": "/images/labels/zelda-ocarina-of-time.png" },
+      { "title": "GoldenEye 007", "cover": "/images/labels/goldeneye-007.png" }
+    ],
+    "gba": [
+      { "title": "Metroid Fusion", "cover": "/images/labels/metroid-fusion.png" },
+      { "title": "Pokemon Emerald", "cover": "/images/labels/pokemon-emerald.png" },
+      { "title": "The Legend of Zelda: The Minish Cap", "cover": "/images/labels/zelda-minish-cap.png" }
+    ],
+    "nds": [
+      { "title": "Mario Kart DS", "cover": "/images/labels/mario-kart-ds.png" },
+      { "title": "New Super Mario Bros.", "cover": "/images/labels/new-super-mario-bros.png" },
+      { "title": "Pokemon Diamond", "cover": "/images/labels/pokemon-diamond.png" }
+    ],
+    "switch": [
+      { "title": "The Legend of Zelda: Breath of the Wild", "cover": "/images/labels/zelda-breath-of-the-wild.png" },
+      { "title": "Super Mario Odyssey", "cover": "/images/labels/super-mario-odyssey.png" },
+      { "title": "Mario Kart 8 Deluxe", "cover": "/images/labels/mario-kart-8-deluxe.png" }
+    ]
+  }
+}

@@ -8,6 +8,7 @@ import { CollectionDetails } from "./CollectionDetails";
 import { CollectionEditor, type CollectionInput } from "./CollectionEditor";
 import { GameDetails } from "./GameDetails";
 import { HomeHero } from "./HomeHero";
+import { ZenGate } from "./ZenGate";
 
 type View = "home" | "lists";
 
@@ -147,20 +148,7 @@ export function ArchiveApp({ initialGames }: { initialGames: Game[] }) {
 
   return (
     <div className={`app-shell ${view === "home" ? "is-home" : ""}`}>
-      <header className="site-header">
-        <div className="header-inner">
-          <button className="brand" onClick={() => setView("home")} aria-label="roms.tn home">
-            <span className="brand-mark" aria-hidden="true"><i /><i /><i /><i /></span>
-            <span>roms<span className="brand-domain">.tn</span></span>
-          </button>
-          <nav className="main-nav" aria-label="Main navigation">
-            <button className={`nav-link ${view === "home" ? "active" : ""}`} onClick={() => setView("home")}>Home</button>
-            <button className={`nav-link ${view === "lists" ? "active" : ""}`} onClick={() => setView("lists")}>
-              Lists{library.collections.length > 0 && <span className="nav-count">{library.collections.length}</span>}
-            </button>
-          </nav>
-        </div>
-      </header>
+      <ZenGate view={view} listCount={library.collections.length} onNavigate={setView} />
 
       <main className="main-content">
         {view === "home" && <HomeHero />}
