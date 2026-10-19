@@ -18,7 +18,7 @@ import {
   DEFAULT_TILTED_POSE,
   seamlessCarouselSlotCount,
 } from '../lib/carouselPrefs.js'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { RoomEnvironment } from './roomEnvironment'
 
 // Models are normalized on import, so these are calibrated to the reference
 // screen proportions rather than copied from the reference unnormalized transforms.
