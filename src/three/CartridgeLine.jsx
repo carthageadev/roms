@@ -13,7 +13,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { RoomEnvironment } from './roomEnvironment'
 import {
   configureShellMaterial,
   labelFinishParameters,
@@ -293,6 +293,8 @@ function StudioEnvironment() {
   const gl = useThree((state) => state.gl)
   const scene = useThree((state) => state.scene)
   useEffect(() => {
+    // The room is pinned to Panoply's copy on purpose: the current three
+    // example lights the shells much harder and the plastic blows out.
     const generator = new THREE.PMREMGenerator(gl)
     const environment = generator.fromScene(new RoomEnvironment(), 0.04).texture
     scene.environment = environment
