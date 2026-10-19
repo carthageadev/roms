@@ -20,6 +20,11 @@ h1, h2, h3, p { color: inherit; }
 
 .app-shell { background: #07080a; min-height: 100dvh; }
 
+/* The bar is gone, so the band it occupied is empty air now: the content keeps
+   exactly the position it had, and the point that opens the gate floats in it. */
+.main-content { padding-top: 102px; }
+@media (max-width: 700px) { .main-content { padding-top: 87px; } }
+
 /* The home page is a single screen: it never scrolls. */
 .app-shell.is-home {
   height: 100dvh;
@@ -35,20 +40,108 @@ h1, h2, h3, p { color: inherit; }
   padding-bottom: 0;
 }
 
-/* ---------- header ---------- */
+/* ---------- navigation: one quiet point ---------- */
 
-.site-header { background: transparent; border-bottom: 1px solid #14181f; height: 72px; }
-.header-inner { height: 72px; }
-.brand { color: #eef1f5; }
-.brand-domain { color: #6b7280; }
-.brand-mark i { background: #aab4c8; }
-.brand-mark i:last-child { background: #4a5263; }
-.main-nav { gap: 22px; }
-.nav-link { color: #7d8491; background: none; border: 0; padding: 0; font-size: 12.5px; display: inline-flex; align-items: center; gap: 7px; }
-.nav-link:hover { color: #cfd6e2; }
-.nav-link.active { color: #eef1f5; }
-.nav-link.active::after { background: #aab4c8; }
-.nav-count { background: #1f2430; color: #c9d0dc; border-radius: 999px; padding: 1px 7px; font-size: 9px; }
+/* The old bar is gone. What is left is a dim point in the corner that breathes
+   slowly; it opens a gate with the two destinations written very large. */
+.zen-trigger {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  z-index: 40;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+.zen-trigger-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d7dfeb;
+  animation: zen-breathe 7s ease-in-out infinite;
+  transition: box-shadow 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.zen-trigger:hover .zen-trigger-dot,
+.zen-trigger:focus-visible .zen-trigger-dot { transform: scale(1.3); box-shadow: 0 0 0 10px rgba(215, 223, 235, 0.07); }
+.zen-trigger:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.2); outline-offset: 2px; }
+@keyframes zen-breathe {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.88; }
+}
+
+.zen-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  /* Opaque: the page is gone and the words are the only thing in the room. */
+  background: radial-gradient(130% 100% at 50% 42%, #0e1116 0%, #07080a 62%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.45s ease, visibility 0.45s;
+}
+.zen-gate.is-open { opacity: 1; visibility: visible; pointer-events: auto; }
+
+.zen-gate-list { display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 3.2vh, 40px); }
+.zen-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 18px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.zen-gate.is-open .zen-entry { opacity: 1; transform: none; }
+.zen-gate.is-open .zen-entry:nth-child(2) { transition-delay: 70ms; }
+.zen-entry-word {
+  font-size: clamp(40px, 7.2vw, 92px);
+  line-height: 1;
+  letter-spacing: -0.045em;
+  font-weight: 500;
+  color: #6d7583;
+  transition: color 0.3s ease;
+}
+.zen-entry-note {
+  font-size: 9.5px;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: #4d5563;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  transition: color 0.3s ease;
+}
+.zen-entry-note b { font-size: 9px; letter-spacing: 0.5px; color: #9aa3b2; }
+.zen-entry:hover .zen-entry-word,
+.zen-entry:focus-visible .zen-entry-word { color: #f4f6f8; }
+.zen-entry:hover .zen-entry-note,
+.zen-entry:focus-visible .zen-entry-note { color: #7d8491; }
+.zen-entry.is-current .zen-entry-word { color: #eef1f5; }
+.zen-entry.is-current .zen-entry-note { color: #6b7280; }
+.zen-entry:focus-visible { outline: none; }
+
+.zen-gate-hint {
+  position: absolute;
+  bottom: 26px;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #39404c;
+}
 
 /* ---------- home: copy ---------- */
 
@@ -265,18 +358,19 @@ h1, h2, h3, p { color: inherit; }
 /* ---------- small screens ---------- */
 
 @media (max-width: 700px) {
-  /* globals.css hides the nav here and expects a mobile menu; there are only
-     two links now, so they stay. */
-  .main-nav { display: flex; gap: 18px; }
-  .main-nav .nav-link { font-size: 12px; }
   .home-hero { padding-top: 16px; }
   .home-hero h1 { margin-top: 13px; letter-spacing: -1.2px; }
   .lineup-hud { gap: 14px; padding-bottom: 22px; }
   .lineup-caption { min-width: 0; flex: 1; }
   .lineup-caption h2 { font-size: 17px; }
   .lineup-arrow { width: 44px; height: 44px; }
+  .zen-trigger { top: 12px; right: 12px; }
+  .zen-gate-hint { bottom: 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lineup-caption h2, .lineup-skeleton-dot { animation: none; }
+  .lineup-caption h2, .lineup-skeleton-dot, .zen-trigger-dot { animation: none; }
+  .zen-trigger-dot { opacity: 0.7; }
+  .zen-gate, .zen-entry { transition: none; }
+  .zen-entry { transform: none; opacity: 1; }
 }

@@ -12,7 +12,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
-import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import {
@@ -23,13 +22,20 @@ import {
   TextureWarmup,
   useLabelTexture,
 } from './Scene.jsx'
-import { MODELS, LINEUP_SIZE } from '../data/cartridgeModels.js'
+import { MODELS, LINEUP_SIZE, LABEL_ASPECT } from '../data/cartridgeModels.js'
 import { labelArt } from '../lib/labelArt'
 
 const SPACING = 3.05
-const CART_SCALE = 1.4
-const ROW_LIFT = 0.45
+const ROW_LIFT = 0.3
+// Lifts the whole line so the centred cartridge clears the caption row.
+const LINE_LIFT = 0.28
 const DEPTH_STEP = 1
+// Panoply's own framing: the centred cartridge fills the middle of the screen
+// and its neighbours sit at the edges. Narrow windows pull the whole line in
+// rather than letting the cartridges collide.
+const CENTER_SCALE = 1.05
+const SIDE_SCALE = 0.88
+const MIN_FIT = 0.6
 // How long the line rests on a cartridge before stepping to the next one.
 const HOLD_SECONDS = 2.6
 // Longest slice of time a single frame may advance the drift. Caps the jump
@@ -38,8 +44,8 @@ const MAX_FRAME_STEP = 0.25
 const FADE_SECONDS = 0.9
 const FADE_STAGGER = 0.06
 const BACKGROUND = '#07080a'
-const CAMERA_POSITION = [0, 0.35, 15]
-const CAMERA_TARGET = [0, 0.08, 0]
+const CAMERA_POSITION = [0, 0.15, 7.4]
+const CAMERA_TARGET = [0, 0.15, 0]
 const LIGHT_STATE = { pose: 'default' }
 
 const easeOutCubic = (p) => 1 - Math.pow(1 - p, 3)
@@ -117,10 +123,10 @@ function LineCartridge({ cart, index, motion, textureQueue, art, onReady }) {
   const shellMaterial = useMemo(
     () => configureShellMaterial(
       new THREE.MeshPhysicalMaterial({ ...shellTextures, color: cart.casing || '#ffffff' }),
-      cart.finish,
+      'default',
       cart.casing,
     ),
-    [shellTextures, cart.casing, cart.finish],
+    [shellTextures, cart.casing],
   )
 
   const innerMaterial = useMemo(() => {
@@ -185,15 +191,18 @@ function LineCartridge({ cart, index, motion, textureQueue, art, onReady }) {
 
     // How centred the cartridge is: 1 in the middle, 0 a slot away.
     const centred = Math.max(0, 1 - Math.abs(u))
+    // Panoply's framing: the line scales down with the window's proportions so
+    // a phone shows the centred cartridge large instead of a row of minis.
+    const fit = THREE.MathUtils.clamp(state.camera.aspect / (16 / 9), MIN_FIT, 1)
 
     node.position.set(
       u * SPACING,
-      cart.row * ROW_LIFT + cart.lift + 0.05 * Math.sin(time * 0.5 + cart.phase) + 0.1 * centred,
+      LINE_LIFT + cart.row * ROW_LIFT + cart.lift + 0.05 * Math.sin(time * 0.5 + cart.phase) + 0.1 * centred,
       cart.depth * DEPTH_STEP + 0.5 * centred,
     )
     node.rotation.set(
       -0.03 + 0.02 * Math.sin(time * 0.4 + cart.phase),
-      (config.faceRotation ?? Math.PI) + cart.tilt - 0.07 * u,
+      (config.faceRotation ?? Math.PI) + cart.tilt - 0.05 * u,
       0.02 * Math.cos(time * 0.45 + cart.phase),
     )
 
@@ -208,7 +217,8 @@ function LineCartridge({ cart, index, motion, textureQueue, art, onReady }) {
       material.opacity = (material.userData.panoplyBaseOpacity ?? 1) * easeOutCubic(t)
       material.transparent = t < 1 ? true : Boolean(material.userData.panoplyBaseTransparent)
     })
-    node.scale.setScalar(CART_SCALE * (1 + 0.08 * centred) * (0.94 + 0.06 * easeOutBack(t)))
+    const scale = (SIDE_SCALE + (CENTER_SCALE - SIDE_SCALE) * centred) * fit
+    node.scale.setScalar(scale * (0.94 + 0.06 * easeOutBack(t)))
   })
 
   return (
@@ -308,7 +318,6 @@ export default function CartridgeLine({ carts, controlRef, onSelect, onProgress 
     if (container.current) container.current.dataset.loaded = String(loadedRef.current)
     onProgress?.(loadedRef.current)
   }, [onProgress])
-  const [art, setArt] = useState({})
 
   const onIndex = useCallback((selected) => {
     const node = container.current
@@ -331,27 +340,9 @@ export default function CartridgeLine({ carts, controlRef, onSelect, onProgress 
     }
   }, [controlRef])
 
-  // Real box art, one title at a time, politely paced. The generated label
-  // stays on screen until (and unless) a real cover resolves.
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      for (const cart of carts) {
-        if (!alive) return
-        try {
-          const response = await fetch(`/api/cover?title=${encodeURIComponent(cart.title)}`)
-          const data = await response.json()
-          if (alive && data.url) setArt((current) => ({ ...current, [cart.id]: data.url }))
-        } catch {
-          // Keep the generated label.
-        }
-        await new Promise((resolve) => setTimeout(resolve, 1200))
-      }
-    })()
-    return () => {
-      alive = false
-    }
-  }, [carts])
+  // Box art ships with the site, so every label resolves from a local file and
+  // no cartridge waits on a network round trip. The generated label is only a
+  // fallback for a cartridge without cover art.
 
   const onPointerDown = (event) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return
@@ -410,20 +401,18 @@ export default function CartridgeLine({ carts, controlRef, onSelect, onProgress 
     >
       <Canvas
         frameloop="always"
-        dpr={[1, 1.6]}
-        camera={{ position: CAMERA_POSITION, fov: 30, near: 0.1, far: 60 }}
+        dpr={[1, 2]}
+        camera={{ position: CAMERA_POSITION, fov: 35, near: 0.1, far: 60 }}
         gl={{
           antialias: true,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 0.75,
         }}
         onCreated={({ camera, scene }) => {
           camera.lookAt(...CAMERA_TARGET)
           // An opaque background in exactly the page colour: the canvas then
           // blends into the page with no visible edge.
           scene.background = new THREE.Color(BACKGROUND)
-          scene.fog = new THREE.Fog(BACKGROUND, 14, 30)
         }}
       >
         <StudioEnvironment />
@@ -438,13 +427,10 @@ export default function CartridgeLine({ carts, controlRef, onSelect, onProgress 
             index={index}
             motion={motion.current}
             textureQueue={queue.current}
-            art={art[cart.id] || labelArt(cart.title, cart.platformName)}
+            art={cart.cover || labelArt(cart.title, cart.platformName, LABEL_ASPECT[cart.platform])}
             onReady={onReady}
           />
         ))}
-        <EffectComposer>
-          <Bloom mipmapBlur intensity={0.09} luminanceThreshold={0.97} luminanceSmoothing={0.14} radius={0.5} />
-        </EffectComposer>
       </Canvas>
     </div>
   )
