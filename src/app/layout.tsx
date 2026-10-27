@@ -3,16 +3,17 @@ import type { ReactNode } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
 import "./home-dark.css";
+import "./coming-soon.css";
 
 const dmSans = localFont({ src: "../../public/fonts/dm-sans.ttf", display: "swap", variable: "--font-dm-sans", weight: "100 1000" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://roms.tn"),
-  title: "roms.tn - Good games. Never forgotten.",
-  description: "A quieter corner of the internet for the games you love. Discover timeless classics, save your favorites, and build your own retro game collections.",
+  title: "roms.tn - A closer look at cartridges",
+  description: "An upcoming archive of the physical details of game cartridges, from plastic shells and chips to notches, screws, and differences between releases.",
   applicationName: "roms.tn",
   icons: { icon: "/icon.svg" },
-  openGraph: { title: "roms.tn - Good games. Never forgotten.", description: "Rediscover the classics. Keep the good games close.", type: "website", images: ["/images/handheld.jpg"] },
+  openGraph: { title: "roms.tn - A closer look at cartridges", description: "An upcoming archive of the physical details of game cartridges.", type: "website" },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -1,81 +1,41 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { buildLineup } from "../data/cartridgeModels.js";
 
-// The 3D code is its own chunk. The lineup is built after mount so the server
-// and client markup match.
-const CartridgeLine = dynamic(() => import("../three/CartridgeLine.jsx"), {
+// Keep WebGL out of the initial page and leave the copy usable without it.
+const CartridgeShowcase = dynamic(() => import("../three/CartridgeShowcase.jsx"), {
   ssr: false,
-  loading: () => <div className="lineup-loading" aria-hidden="true" />,
+  loading: () => <div className="showcase-loading" aria-hidden="true" />,
 });
 
-type LineupCart = { id: string; title: string; platformName: string };
-type LineupControl = { step: (direction: number) => void };
-
-const SKELETON_DOTS = Array.from({ length: 5 }, (_, i) => i);
-
 export function HomeHero() {
-  const [carts, setCarts] = useState<LineupCart[] | null>(null);
-  const [index, setIndex] = useState(0);
-  const [loaded, setLoaded] = useState(0);
-  const control = useRef<LineupControl | null>(null);
-
-  useEffect(() => {
-    // Random per visit, so this runs once on the client after mount.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCarts(buildLineup());
-  }, []);
-
-  const current = carts?.[index] ?? null;
-
   return (
-    <section className="home-hero" aria-labelledby="home-title">
-      <div className="home-copy">
-        <p className="eyebrow">THE PAST, PLAYED FORWARD</p>
-        <h1 id="home-title">
-          Good games. <span>Never forgotten.</span>
-        </h1>
-      </div>
+    <main className="archive-home" aria-labelledby="home-title">
+      <div className="archive-home-inner">
+        <header className="archive-masthead">
+          <span className="archive-name">roms.tn</span>
+          <span className="archive-masthead-divider" aria-hidden="true" />
+          <span className="archive-masthead-note">A physical archive</span>
+        </header>
 
-      <div className="lineup-wrap">
-        <div className={`lineup-skeleton${loaded > 0 ? " is-hidden" : ""}`} aria-hidden="true">
-          {SKELETON_DOTS.map((i) => (
-            <span key={i} className="lineup-skeleton-dot" style={{ "--i": i } as CSSProperties} />
-          ))}
-        </div>
-        {carts ? (
-          <CartridgeLine carts={carts} controlRef={control} onSelect={setIndex} onProgress={setLoaded} />
-        ) : (
-          <div className="lineup-loading" aria-hidden="true" />
-        )}
-      </div>
+        <CartridgeShowcase />
 
-      <div className="lineup-hud" aria-live="polite">
-        <button
-          type="button"
-          className="lineup-arrow"
-          aria-label="Previous cartridge"
-          onClick={() => control.current?.step(-1)}
-          disabled={!current}
-        >
-          &larr;
-        </button>
-        <div className="lineup-caption">
-          <h2 key={current?.id ?? "empty"}>{current?.title ?? ""}</h2>
-          <p>{current?.platformName ?? ""}</p>
-        </div>
-        <button
-          type="button"
-          className="lineup-arrow"
-          aria-label="Next cartridge"
-          onClick={() => control.current?.step(1)}
-          disabled={!current}
-        >
-          &rarr;
-        </button>
+        <section className="archive-intro">
+          <p className="archive-eyebrow">A closer look</p>
+          <h1 id="home-title">The little details<br />{" "}<span>worth keeping.</span></h1>
+          <p className="archive-description">
+            roms.tn is an upcoming repository for the physical details of game cartridges - from
+            cartridge types and plastic shells to chips, notches, screw types and the small differences between releases.
+          </p>
+          <div className="archive-access">
+            <button className="access-status" type="button" disabled>
+              <span className="access-status-dot" aria-hidden="true" />
+              Access closed
+            </button>
+            <p>Opening soon.</p>
+          </div>
+        </section>
       </div>
-    </section>
+    </main>
   );
 }

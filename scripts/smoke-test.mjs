@@ -1,186 +1,164 @@
-import { chromium, expect as baseExpect } from "@playwright/test";
-import assert from "node:assert/strict";
-import fs from "node:fs";
+import { chromium, expect as baseExpect } from '@playwright/test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
 
-// This suite renders WebGL in software, so every wait gets room to breathe.
-const expect = baseExpect.configure({ timeout: 30000 });
-const base = process.env.PREVIEW_URL ?? "http://localhost:3000";
-fs.mkdirSync("artifacts", { recursive: true });
+const expect = baseExpect.configure({ timeout: 30000 })
+const base = process.env.PREVIEW_URL ?? 'http://localhost:3000'
+fs.mkdirSync('artifacts', { recursive: true })
 const browser = await chromium.launch({
   headless: true,
-  // The home page is WebGL, so the browser needs a software GL to render it.
-  args: ["--no-sandbox", "--disable-dev-shm-usage", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-});
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
-const page = await context.newPage();
-const errors = [];
-page.on("pageerror", (error) => errors.push(error.message));
-const library = () => page.evaluate(async () => (await fetch("/api/library")).json());
-const action = (input) => page.evaluate(async (body) => {
-  const response = await fetch("/api/library", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  return { status: response.status, data: await response.json() };
-}, input);
-const fits = (target) => target.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1 && document.documentElement.scrollWidth <= innerWidth + 1);
-const stageIndex = () => page.locator(".lineup-stage").getAttribute("data-index");
-// The navigation is the corner gate: open it, then pick the destination.
-const openGate = async (target, label) => {
-  await target.getByRole("button", { name: "Open navigation", exact: true }).click();
-  // The gate fades in; pointing at one of its words before it settles is a race.
-  await target.waitForFunction(() => document.querySelector(".zen-gate")?.classList.contains("is-open") === true, null, { timeout: 60000 });
-  await target.waitForTimeout(700);
-  await target.locator(".zen-entry").filter({ hasText: label }).click();
-};
-// The app hydrates lazily: wait for the lineup to be alive before touching the nav.
-const lineupReady = (target) => expect
-  .poll(async () => Number((await target.locator(".lineup-stage").getAttribute("data-loaded")) ?? 0), { timeout: 180000 })
-  .toBeGreaterThan(0);
+  ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
+  args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+})
+const errors = []
+
+async function openPage(context) {
+  const page = await context.newPage()
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 120000 })
+  await expect(page.locator('.showcase-stage[data-ready="true"]')).toBeVisible({ timeout: 180000 })
+  // Allow the first frame and the opacity transition to finish before sampling.
+  await page.waitForTimeout(1000)
+  return page
+}
+
+async function fits(page) {
+  return page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1 && document.documentElement.scrollHeight <= innerHeight + 1)
+}
+
+async function dispatchTilt(page, beta, gamma) {
+  await page.evaluate(({ beta, gamma }) => {
+    window.dispatchEvent(new DeviceOrientationEvent('deviceorientation', { beta, gamma }))
+  }, { beta, gamma })
+}
 
 try {
-  await page.goto(base, { waitUntil: "domcontentloaded" });
-  const stage = page.locator(".lineup-stage");
-  await expect(stage).toBeVisible({ timeout: 120000 });
-  await expect(page.locator("h1")).toHaveText(/Good games/);
-  assert.equal(await fits(page), true, "the home page must fit one screen");
-  assert.equal(await page.locator(".zen-trigger").isVisible(), true, "the corner gate is the navigation");
+  const desktop = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1 })
+  const requests = []
+  desktop.on('request', request => requests.push(new URL(request.url()).pathname))
+  const page = await openPage(desktop)
+  const stage = page.locator('.showcase-stage')
+  await expect(page.getByRole('img', { name: /Game Boy Advance cartridge/i })).toHaveCount(1)
+  await expect(page.locator('canvas')).toHaveCount(1)
+  await expect(page.locator('h1')).toHaveText('The little details worth keeping.')
+  await expect(page.getByText(/physical details of game cartridges/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Access closed' })).toBeDisabled()
+  await expect(page.getByText('Opening soon.')).toBeVisible()
+  await expect(page.getByRole('navigation')).toHaveCount(0)
+  assert.equal(requests.some(path => path.startsWith('/api/')), false, 'the coming-soon page must not fetch an API')
+  assert.equal(requests.some(path => path.includes('/models/n64/')), false, 'only the GBA model should be loaded')
+  assert.equal(await fits(page), true, 'desktop home should fit one screen')
+  await page.screenshot({ path: 'artifacts/home-desktop.png' })
+  console.log('PASS: one GBA, archive copy, honest closed-access status, and no API requests')
 
-  // Cartridges arrive one by one; `data-loaded` counts them.
-  await lineupReady(page);
-  const title = page.locator(".lineup-caption h2");
-  await expect(title).not.toBeEmpty();
-  await expect(page.locator(".lineup-caption p")).not.toBeEmpty();
-  await page.screenshot({ path: "artifacts/home-desktop.png" });
-  console.log("PASS: dark home fits one screen and the cartridge line renders");
+  // Movement is bounded and actually changes the rendered image.
+  await page.mouse.move(800, 500)
+  await page.waitForTimeout(800)
+  const centred = await stage.screenshot()
+  await page.waitForTimeout(1600)
+  assert.notDeepEqual(centred, await stage.screenshot(), 'the cartridge should float slowly on its own')
+  await page.mouse.move(1500, 100)
+  await expect(stage).toHaveAttribute('data-input', 'pointer')
+  assert.ok(Number(await stage.getAttribute('data-target-x')) > 0.8)
+  assert.ok(Math.abs(Number(await stage.getAttribute('data-target-y'))) <= 1)
+  await page.waitForTimeout(900)
+  const nudged = await stage.screenshot()
+  assert.notDeepEqual(centred, nudged, 'the rendered cartridge should react to the pointer')
+  console.log('PASS: mouse movement gently nudges the rendered cartridge')
 
-  // The line steps along on its own.
-  const idleStart = await stageIndex();
-  await expect.poll(stageIndex, { timeout: 30000 }).not.toBe(idleStart);
+  await expect(page.getByRole('button', { name: 'Enable phone tilt' })).toHaveCount(0)
+  await desktop.close()
 
-  // The arrows step backwards and forwards. Backwards is the telling one: the
-  // idle motion only ever moves the other way.
-  const before = await stageIndex();
-  await page.getByRole("button", { name: "Previous cartridge", exact: true }).click();
-  const previous = String((Number(before) + 11) % 12);
-  await expect.poll(stageIndex, { timeout: 30000 }).toBe(previous);
-  await page.getByRole("button", { name: "Next cartridge", exact: true }).click();
-  await expect.poll(stageIndex, { timeout: 30000 }).toBe(before);
-  console.log("PASS: the line drifts on its own and the arrows step it");
+  // Simulate a phone sensor on browsers that do not require permission.
+  const automaticPhone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  await automaticPhone.addInitScript(() => {
+    class MockOrientationEvent extends Event {
+      constructor(type, values = {}) { super(type); this.beta = values.beta ?? null; this.gamma = values.gamma ?? null }
+    }
+    Object.defineProperty(window, 'DeviceOrientationEvent', { value: MockOrientationEvent, configurable: true })
+  })
+  const tiltPage = await openPage(automaticPhone)
+  const tiltStage = tiltPage.locator('.showcase-stage')
+  await dispatchTilt(tiltPage, 35, 10)
+  await tiltPage.waitForTimeout(500)
+  const levelPhone = await tiltStage.screenshot()
+  await dispatchTilt(tiltPage, 47, 25)
+  await expect(tiltStage).toHaveAttribute('data-input', 'tilt')
+  assert.ok(Math.abs(Number(await tiltStage.getAttribute('data-target-x')) - 0.75) < 0.01)
+  assert.ok(Math.abs(Number(await tiltStage.getAttribute('data-target-y')) + 0.6) < 0.01)
+  await tiltPage.waitForTimeout(900)
+  assert.notDeepEqual(levelPhone, await tiltStage.screenshot(), 'the rendered cartridge should react to phone tilt')
+  await dispatchTilt(tiltPage, -90, 89)
+  assert.ok(Math.abs(Number(await tiltStage.getAttribute('data-target-x'))) <= 1)
+  assert.ok(Math.abs(Number(await tiltStage.getAttribute('data-target-y'))) <= 1)
+  await automaticPhone.close()
+  console.log('PASS: phone tilt is relative to the starting position and bounded')
 
-  await openGate(page, "Lists");
-  await expect(page.locator(".page-heading h1")).toHaveText("Make a list.");
-  await page.getByRole("button", { name: "Create your first list", exact: true }).click();
-  await page.getByLabel(/Collection name/).fill("Sunday favorites");
-  await page.getByLabel(/A few words/).fill("A small archive for slow afternoons.");
-  await page.locator(".picker-game").filter({ hasText: "Pokémon Emerald" }).click();
-  await page.getByRole("button", { name: "Choose #e7e6ed collection color", exact: true }).click();
-  await page.getByRole("button", { name: "Create collection", exact: true }).click();
-  await expect(page.locator(".collection-card").filter({ hasText: "Sunday favorites" })).toBeVisible();
-  let data = await library();
-  assert.equal(data.collections.length, 1);
-  assert.deepEqual(data.collections[0].gameIds, ["pokemon-emerald"]);
-  assert.equal(data.collections[0].color, "#e7e6ed");
-  console.log("PASS: a list can be created with a name, words, games and a colour");
-
-  await page.locator(".collection-card").filter({ hasText: "Sunday favorites" }).click();
-  await page.getByRole("button", { name: "Edit collection", exact: true }).click();
-  await page.getByLabel(/Collection name/).fill("Slow Sunday");
-  await page.locator(".picker-game").filter({ hasText: "Chrono Trigger" }).click();
-  await page.getByRole("button", { name: "Save changes", exact: true }).click();
-  await expect(page.locator(".collection-card").filter({ hasText: "Slow Sunday" })).toBeVisible();
-  data = await library();
-  assert.equal(data.collections[0].name, "Slow Sunday");
-  assert.equal(data.collections[0].gameIds.length, 2);
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await lineupReady(page);
-  await openGate(page, "Lists");
-  await expect(page.locator(".collection-card").filter({ hasText: "Slow Sunday" })).toBeVisible();
-  console.log("PASS: lists can be edited and survive a reload");
-
-  await page.locator(".collection-card").filter({ hasText: "Slow Sunday" }).click();
-  await page.locator(".collection-game-grid .game-title").first().click();
-  await expect(page.locator(".game-detail-modal h2")).toContainText("Emerald");
-  await page.getByRole("button", { name: "Save to your library", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Saved to your library", exact: true })).toBeVisible();
-  await page.keyboard.press("Escape");
-  assert.deepEqual((await library()).savedGameIds, ["pokemon-emerald"]);
-  console.log("PASS: a game opens from its list and can be saved");
-
-  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  const phone = await mobile.newPage();
-  phone.on("pageerror", (error) => errors.push(error.message));
-  await phone.goto(base, { waitUntil: "domcontentloaded" });
-  await expect(phone.locator(".lineup-stage")).toBeVisible({ timeout: 120000 });
-  await lineupReady(phone);
-  assert.equal(await fits(phone), true, "the home page must fit one phone screen");
-  assert.equal(await phone.locator(".zen-trigger").isVisible(), true, "the gate stays reachable on small screens");
-  await phone.screenshot({ path: "artifacts/home-mobile.png" });
-  await openGate(phone, "Lists");
-  await expect(phone.locator(".page-heading h1")).toHaveText("Make a list.");
-  await phone.getByRole("button", { name: "New list", exact: true }).click();
-  await expect(phone.locator(".editor-modal")).toBeVisible();
-  await phone.keyboard.press("Escape");
-  await phone.setViewportSize({ width: 320, height: 740 });
-  await phone.goto(base, { waitUntil: "domcontentloaded" });
-  assert.equal(await fits(phone), true, "the narrow home must fit too");
-  await mobile.close();
-  console.log("PASS: phone and narrow-phone layouts hold together");
-
-  const allGames = await context.request.get(base + "/api/games").then((response) => response.json());
-  assert.equal(allGames.total, 16);
-  for (const game of allGames.games) {
-    const response = await context.request.get(base + game.cover);
-    assert.equal(response.status(), 200, game.id);
-    assert.equal((await response.body()).subarray(0, 4).toString("hex"), "89504e47", game.id);
+  for (const [name, viewport] of [
+    ['laptop', { width: 1280, height: 720 }],
+    ['phone', { width: 390, height: 844 }],
+    ['narrow-phone', { width: 320, height: 640 }],
+  ]) {
+    const isPhone = name !== 'laptop'
+    const context = await browser.newContext({ viewport, deviceScaleFactor: 1, reducedMotion: 'reduce', isMobile: isPhone, hasTouch: isPhone })
+    if (name === 'phone') {
+      await context.addInitScript(() => {
+        class MockOrientationEvent extends Event {
+          constructor(type, values = {}) { super(type); this.beta = values.beta ?? null; this.gamma = values.gamma ?? null }
+        }
+        Object.defineProperty(window, 'DeviceOrientationEvent', { value: MockOrientationEvent, configurable: true })
+      })
+    }
+    const target = await openPage(context)
+    assert.equal(await fits(target), true, `${name} should fit one screen`)
+    await expect(target.getByRole('button', { name: 'Access closed' })).toBeInViewport()
+    await target.screenshot({ path: `artifacts/home-${name}.png` })
+    if (name === 'phone') {
+      const phoneStage = target.locator('.showcase-stage')
+      await target.mouse.move(350, 50)
+      await dispatchTilt(target, 35, 10)
+      await dispatchTilt(target, 50, 30)
+      await expect(phoneStage).toHaveAttribute('data-input', 'still')
+      const first = await phoneStage.screenshot()
+      await target.waitForTimeout(1000)
+      const second = await phoneStage.screenshot()
+      assert.deepEqual(first, second, 'reduced motion must stop the float and input movement')
+    }
+    await context.close()
   }
-  assert.equal((await action({ action: "toggle-save", gameId: "unknown" })).status, 404);
-  assert.equal((await action({ action: "create-collection", name: "", gameIds: [] })).status, 400);
-  assert.equal((await action({ action: "update-collection", collectionId: "nope", name: "x", gameIds: [] })).status, 404);
-  // There is no ROM index behind the archive: nothing outside the catalog can
-  // be saved or listed, however complete the payload looks.
-  const indexGone = await context.request.get(base + "/api/roms?q=mario");
-  assert.equal(indexGone.status(), 404);
-  assert.equal((await action({ action: "toggle-save", gameId: "rom-0123456789ab", game: { id: "rom-0123456789ab", title: "Anything", platform: "nes", platformName: "NES", genre: "x", developer: "x", description: "x", color: "#fff", accent: "#000" } })).status, 404);
-  assert.equal((await action({ action: "create-collection", name: "Real roms", gameIds: ["rom-0123456789ab"] })).status, 400);
-  assert.equal((await library()).collections.some((collection) => collection.name === "Real roms"), false);
-  console.log("PASS: every cover resolves, bad requests rejected, no ROM index");
+  console.log('PASS: laptop and phone layouts fit; reduced motion stops animation')
 
-  const isolated = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  const stranger = await isolated.newPage();
-  await stranger.goto(base, { waitUntil: "domcontentloaded" });
-  const otherLibrary = await stranger.evaluate(async (id) => {
-    const before = await (await fetch("/api/library")).json();
-    const response = await fetch("/api/library", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update-collection", collectionId: id, name: "Not yours", gameIds: [] }) });
-    return { savedGameIds: before.savedGameIds, collections: before.collections, status: response.status };
-  }, data.collections[0].id);
-  assert.deepEqual(otherLibrary.savedGameIds, []);
-  assert.deepEqual(otherLibrary.collections, []);
-  assert.equal(otherLibrary.status, 404, "another browser must not touch this list");
-  await isolated.close();
-  console.log("PASS: lists stay private per browser");
-
-  await openGate(page, "Lists");
-  await page.locator(".collection-card").filter({ hasText: "Slow Sunday" }).click();
-  await page.getByRole("button", { name: "Edit collection", exact: true }).click();
-  await page.getByRole("button", { name: "Delete collection", exact: true }).click();
-  await page.getByRole("button", { name: "Yes, delete", exact: true }).click();
-  await expect(page.locator(".editor-modal")).toHaveCount(0);
-  assert.equal((await library()).collections.some((collection) => collection.name === "Slow Sunday"), false);
-  data = await library();
-  for (const collection of data.collections) await action({ action: "delete-collection", collectionId: collection.id });
-  for (const gameId of data.savedGameIds) await action({ action: "toggle-save", gameId });
-  const cleaned = await library();
-  assert.equal(cleaned.collections.length, 0);
-  assert.equal(cleaned.savedGameIds.length, 0);
-  assert.deepEqual(errors, []);
-  console.log("PASS: lists delete cleanly, no runtime errors anywhere");
-  console.log("ALL FULLSTACK AND BROWSER CHECKS PASSED");
+  // iOS requires a gesture before requestPermission. Mock only the browser API,
+  // then exercise the real button and the real orientation listener.
+  for (const outcome of ['granted', 'denied']) {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+    await context.addInitScript((result) => {
+      class MockOrientationEvent extends Event {
+        constructor(type, values = {}) { super(type); this.beta = values.beta ?? null; this.gamma = values.gamma ?? null }
+        static async requestPermission() { return result }
+      }
+      Object.defineProperty(window, 'DeviceOrientationEvent', { value: MockOrientationEvent, configurable: true })
+    }, outcome)
+    const phone = await openPage(context)
+    await phone.getByRole('button', { name: 'Enable phone tilt' }).click()
+    if (outcome === 'granted') {
+      await expect(phone.getByRole('button', { name: 'Enable phone tilt' })).toHaveCount(0)
+      await dispatchTilt(phone, 30, 5)
+      await dispatchTilt(phone, 35, 15)
+      await expect(phone.locator('.showcase-stage')).toHaveAttribute('data-input', 'tilt')
+    } else {
+      await expect(phone.getByText('Phone tilt unavailable.')).toBeVisible()
+      await expect(phone.getByRole('button', { name: 'Access closed' })).toBeDisabled()
+    }
+    await context.close()
+  }
+  assert.deepEqual(errors, [], 'there should be no runtime errors')
+  console.log('PASS: permission-based phone tilt works and denial falls back gracefully')
+  console.log('ALL SHOWCASE CHECKS PASSED')
 } catch (error) {
-  console.error("CHECK FAILED:", error);
-  console.error("Runtime errors:", errors);
-  console.error("Open dialogs:", await page.locator(".modal-panel h2").allTextContents().catch(() => []));
-  console.error("Submit labels:", await page.locator(".editor-modal button[type=submit]").allTextContents().catch(() => []));
-  console.error("Body:", (await page.locator("body").ariaSnapshot().catch(() => "")).slice(0, 1200));
-  await page.screenshot({ path: "artifacts/functional-failure.png" });
-  process.exitCode = 1;
+  console.error('CHECK FAILED:', error)
+  console.error('Runtime errors:', errors)
+  process.exitCode = 1
 } finally {
-  await browser.close();
+  await browser.close()
 }
