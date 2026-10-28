@@ -47,7 +47,7 @@ function pickLabelUrl(medias: unknown): string | null {
 
 /**
  * Resolve box art for a single title at the moment it joins the library.
- * Returns null when unconfigured or unresolvable - callers keep a placeholder.
+ * Returns null when unconfigured or unresolvable  -  callers keep a placeholder.
  * ScreenScraper answers slowly and throttles aggressive clients, so callers
  * pass a budget instead of hanging on art.
  */

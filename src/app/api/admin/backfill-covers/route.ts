@@ -12,7 +12,7 @@ export const maxDuration = 60;
  * One-shot backfill of catalog box art. ScreenScraper is not reachable from
  * every network and throttles aggressive clients, so this resolves one title
  * at a time with breathing room, and only touches rows still wearing
- * placeholders - re-running converges on the remainder. Run it where the API
+ * placeholders  -  re-running converges on the remainder. Run it where the API
  * answers (e.g. production): POST with `x-admin-token` matching ADMIN_TOKEN.
  */
 export async function POST(request: NextRequest) {

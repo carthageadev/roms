@@ -24,7 +24,7 @@ export function HomeHero() {
           <p className="archive-eyebrow">A closer look</p>
           <h1 id="home-title">The little details<br />{" "}<span>worth keeping.</span></h1>
           <p className="archive-description">
-            roms.tn is an upcoming repository for the physical details of game cartridges - from
+            roms.tn is an upcoming repository for the physical details of game cartridges  -  from
             cartridge types and plastic shells to chips, notches, screw types and the small differences between releases.
           </p>
           <div className="archive-access">

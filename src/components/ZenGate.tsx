@@ -2,7 +2,7 @@
 
 /**
  * The whole navigation: one dim point in the corner that breathes. Touching it
- * opens a quiet gate - the page blurs away behind two enormous words, nothing
+ * opens a quiet gate  -  the page blurs away behind two enormous words, nothing
  * else. No bar, no logo, no list of links sitting there being furniture.
  */
 import { useEffect, useRef, useState } from "react";
