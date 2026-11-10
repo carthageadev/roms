@@ -321,7 +321,6 @@ export function createDiscMaterial() {
 }
 
 useGLTF.setDecoderPath('/draco/')
-useGLTF.preload('/models/gba/cartridge.glb')
 
 const labelTextureResources = new Map()
 

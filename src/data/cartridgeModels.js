@@ -48,9 +48,33 @@ export const MODELS = {
       aoMap: '/textures/switch/ambient-occlusion.png',
     },
   }),
+  snes: model('/models/snes/cartridge.glb', ['Object_4_001'], {
+    shellNodes: ['Object_42'],
+    shellMaterials: ['Material.001'],
+    faceRotation: 0,
+    shellMaps: {
+      map: '/textures/snes/base-color.jpg',
+      normalMap: '/textures/snes/normal.jpg',
+      roughnessMap: '/textures/snes/metallic-roughness.jpg',
+      metalnessMap: '/textures/snes/metallic-roughness.jpg',
+    },
+  }),
+  nes: model('/models/nes/cartridge.glb', ['Object_001'], {
+    // The GLB nodes are authored lying flat; Panoply's rotation stands the
+    // shell up and turns the label toward the camera. Its nine shell materials
+    // carry the grey tones and the brown grip, so they are kept as authored.
+    rotation: [-Math.PI / 2, Math.PI, 0],
+    shellNodes: ['Object'],
+    preserveShellMaterials: true,
+  }),
 }
 
 export const PLATFORM_ORDER = ['n64', 'gba', 'nds', 'switch']
+
+// One cartridge at a time on the home page, a different system per visit.
+// The games behind these are the ones whose labels already live in
+// public/images/labels, so a visit only ever downloads one model and one label.
+export const SHOWCASE_PLATFORMS = ['gba', 'nds', 'snes', 'nes']
 
 export const LINEUP_SIZE = 12
 
@@ -59,6 +83,8 @@ export const PLATFORM_NAMES = {
   gba: 'Game Boy Advance',
   nds: 'Nintendo DS',
   switch: 'Nintendo Switch',
+  snes: 'Super Nintendo',
+  nes: 'Nintendo Entertainment System',
 }
 
 // Favourite titles per system. Each cartridge wears one of these labels at

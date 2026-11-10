@@ -9,11 +9,11 @@ const dmSans = localFont({ src: "../../public/fonts/dm-sans.ttf", display: "swap
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://roms.tn"),
-  title: "roms.tn  -  A closer look at cartridges",
-  description: "An upcoming archive of the physical details of game cartridges, from plastic shells and chips to notches, screws, and differences between releases.",
+  title: "roms.tn  -  The object is the archive",
+  description: "A field guide to the physical details of game cartridges: shells, chips, notches, screws, and the small differences between releases.",
   applicationName: "roms.tn",
   icons: { icon: "/icon.svg" },
-  openGraph: { title: "roms.tn  -  A closer look at cartridges", description: "An upcoming archive of the physical details of game cartridges.", type: "website" },
+  openGraph: { title: "roms.tn  -  The object is the archive", description: "A field guide to the physical details of game cartridges.", type: "website" },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

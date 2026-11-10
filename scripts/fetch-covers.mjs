@@ -63,6 +63,7 @@ const SYSTEM_ALIASES = {
   nds: ["nintendo ds", "nintendo dsi", "nds", "ds"],
   switch: ["nintendo switch", "switch"],
   gb: ["game boy", "gb"],
+  nes: ["nintendo entertainment system", "nes", "famicom"],
   snes: ["super nintendo", "super nes", "snes"],
   ps1: ["playstation", "ps1"],
   genesis: ["mega drive", "sega genesis", "genesis"],

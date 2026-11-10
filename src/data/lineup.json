@@ -3,7 +3,9 @@
     "n64": { "aspect": 0.85, "u": [0.0749, 0.9247], "v": [0.0001, 0.9999] },
     "gba": { "aspect": 1.9247, "u": [0.0094, 0.9953], "v": [0.0054, 0.988] },
     "nds": { "aspect": 0.9234, "u": [0.0061, 0.9971], "v": [0.0038, 0.9997] },
-    "switch": { "aspect": 0.7167, "u": [0.0028, 0.9967], "v": [0.0068, 0.996] }
+    "switch": { "aspect": 0.7167, "u": [0.0028, 0.9967], "v": [0.0068, 0.996] },
+    "nes": { "aspect": 0.6017, "u": [0, 1], "v": [0, 1] },
+    "snes": { "aspect": 2, "u": [0, 1], "v": [0, 1] }
   },
   "titles": {
     "n64": [
@@ -20,6 +22,12 @@
       { "title": "Mario Kart DS", "cover": "/images/labels/mario-kart-ds.png" },
       { "title": "New Super Mario Bros.", "cover": "/images/labels/new-super-mario-bros.png" },
       { "title": "Pokemon Diamond", "cover": "/images/labels/pokemon-diamond.png" }
+    ],
+    "snes": [
+      { "title": "Chrono Trigger", "cover": "/images/labels/chrono-trigger.png" }
+    ],
+    "nes": [
+      { "title": "Mega Man 2", "cover": "/images/labels/mega-man-2.png" }
     ],
     "switch": [
       { "title": "The Legend of Zelda: Breath of the Wild", "cover": "/images/labels/zelda-breath-of-the-wild.png" },
