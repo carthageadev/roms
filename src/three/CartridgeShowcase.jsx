@@ -9,6 +9,9 @@ import { configureShellMaterial, labelFinishParameters, prepareModel, SceneLight
 import { RoomEnvironment } from './roomEnvironment.js'
 
 const LIGHT_STATE = { pose: 'default' }
+// A phone reaches full input after this much tilt from its calibrated pose.
+// Smaller than the old 20 degree range, so the cartridge answers a gentle turn.
+const TILT_RANGE = 12.5
 // Room the cartridge is allowed to take on the stage, as a fraction of the
 // visible height and width. Every system then sits at the same visual weight,
 // whether the shell is tall like an NES cart or wide like a SNES one.
@@ -194,13 +197,14 @@ function Cartridge({ platform, variant, label, motion, onReady }) {
     arrival.current = reduced ? 1 : Math.min(1, arrival.current + delta / 1.1)
     const settle = 1 - (1 - arrival.current) ** 3
     const float = reduced ? 0 : Math.sin(time * 0.75) * 0.022
-    // Inputs are bounded; the cartridge tips by only a few degrees, never spins.
-    node.position.x = THREE.MathUtils.damp(node.position.x, reduced ? 0 : x * 0.025, 3, step)
-    node.position.y = THREE.MathUtils.damp(node.position.y, reduced ? 0 : float + y * 0.018, 3, step)
+    // Inputs are bounded; the cartridge leans into the pointer and turns far
+    // enough to show its side, but never spins.
+    node.position.x = THREE.MathUtils.damp(node.position.x, reduced ? 0 : x * 0.07, 4, step)
+    node.position.y = THREE.MathUtils.damp(node.position.y, reduced ? 0 : float + y * 0.045, 4, step)
     node.position.z = THREE.MathUtils.damp(node.position.z, (1 - settle) * -0.5, 3, step)
-    node.rotation.x = THREE.MathUtils.damp(node.rotation.x, -0.035 + (reduced ? 0 : y * 0.045), 3, step)
-    node.rotation.y = THREE.MathUtils.damp(node.rotation.y, restYaw + (reduced ? 0 : x * 0.065), 3, step)
-    node.rotation.z = THREE.MathUtils.damp(node.rotation.z, reduced ? 0 : -x * 0.012, 3, step)
+    node.rotation.x = THREE.MathUtils.damp(node.rotation.x, -0.035 + (reduced ? 0 : y * 0.15), 4, step)
+    node.rotation.y = THREE.MathUtils.damp(node.rotation.y, restYaw + (reduced ? 0 : x * 0.22), 4, step)
+    node.rotation.z = THREE.MathUtils.damp(node.rotation.z, reduced ? 0 : -x * 0.05, 4, step)
     node.scale.setScalar(0.94 + 0.06 * settle)
   })
 
@@ -297,8 +301,8 @@ export default function CartridgeShowcase({ platform, platformName, title, label
         : angle === 270 || angle === -90 ? [-vertical, horizontal]
           : angle === 180 || angle === -180 ? [-horizontal, -vertical]
             : [horizontal, vertical]
-      motion.current.x = clamp(axes[0] / 20)
-      motion.current.y = clamp(-axes[1] / 20)
+      motion.current.x = clamp(axes[0] / TILT_RANGE)
+      motion.current.y = clamp(-axes[1] / TILT_RANGE)
       if (stage.current) {
         stage.current.dataset.input = 'tilt'
         stage.current.dataset.targetX = String(motion.current.x)

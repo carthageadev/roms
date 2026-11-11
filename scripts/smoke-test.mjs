@@ -240,8 +240,8 @@ try {
       await dispatchTilt(opened.page, 30, 5)
       await dispatchTilt(opened.page, 35, 15)
       await expect(opened.page.locator('.showcase-stage')).toHaveAttribute('data-input', 'tilt')
-      assert.ok(Math.abs(Number(await opened.page.locator('.showcase-stage').getAttribute('data-target-x')) - 0.5) < 0.01)
-      assert.ok(Math.abs(Number(await opened.page.locator('.showcase-stage').getAttribute('data-target-y')) + 0.25) < 0.01)
+      assert.ok(Math.abs(Number(await opened.page.locator('.showcase-stage').getAttribute('data-target-x')) - 0.8) < 0.01)
+      assert.ok(Math.abs(Number(await opened.page.locator('.showcase-stage').getAttribute('data-target-y')) + 0.4) < 0.01)
     } else {
       await expect(opened.page.getByText('Tilt unavailable')).toBeVisible()
       await dispatchTilt(opened.page, 35, 15)
