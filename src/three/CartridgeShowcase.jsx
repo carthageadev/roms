@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -10,8 +10,8 @@ const LIGHT_STATE = { pose: 'default' }
 // Room the cartridge is allowed to take on the stage, as a fraction of the
 // visible height and width. Every system then sits at the same visual weight,
 // whether the shell is tall like an NES cart or wide like a SNES one.
-const TARGET_HEIGHT = 0.67
-const TARGET_WIDTH = 0.8
+const TARGET_HEIGHT = 0.72
+const TARGET_WIDTH = 0.9
 
 // The same studio room used by Panoply, rather than the brighter newer one.
 function StudioEnvironment() {
@@ -39,10 +39,14 @@ function Cartridge({ platform, label, motion, onReady }) {
   const { scene } = useGLTF(config.url)
   const { camera, size } = useThree()
   const entries = useMemo(() => Object.entries(config.shellMaps || {}), [config])
-  const textures = useLoader(THREE.TextureLoader, [...entries.map(([, url]) => url), label])
+  const textures = useLoader(THREE.TextureLoader, [
+    ...entries.map(([, url]) => url),
+    label,
+    ...(config.plasticMask ? [config.plasticMask] : []),
+  ])
   const prepared = useMemo(() => prepareModel(scene, config), [scene, config])
 
-  useLayoutEffect(() => {
+  const configuredTextures = useMemo(() => {
     entries.forEach(([name], index) => {
       const texture = textures[index]
       texture.flipY = false
@@ -52,22 +56,40 @@ function Cartridge({ platform, label, motion, onReady }) {
       texture.anisotropy = 8
       texture.needsUpdate = true
     })
-    const art = textures[entries.length]
-    art.flipY = false
-    art.colorSpace = THREE.SRGBColorSpace
-    art.anisotropy = 8
-    art.needsUpdate = true
-  }, [entries, textures])
+    const artTexture = textures[entries.length]
+    artTexture.flipY = false
+    artTexture.colorSpace = THREE.SRGBColorSpace
+    artTexture.anisotropy = 8
+    artTexture.needsUpdate = true
+    const mask = config.plasticMask ? textures[entries.length + 1] : null
+    if (mask) {
+      mask.flipY = false
+      mask.wrapS = mask.wrapT = THREE.RepeatWrapping
+      mask.colorSpace = THREE.NoColorSpace
+      mask.anisotropy = 8
+      mask.needsUpdate = true
+    }
+    return {
+      maps: Object.fromEntries(entries.map(([name], index) => [name, textures[index]])),
+      art: artTexture,
+      mask,
+    }
+  }, [config.plasticMask, entries, textures])
 
   const materials = useMemo(() => {
-    const maps = Object.fromEntries(entries.map(([name], index) => [name, textures[index]]))
+    const { maps, art: artTexture, mask } = configuredTextures
     const shell = configureShellMaterial(
       new THREE.MeshPhysicalMaterial({ ...maps, color: config.shellColor || '#ffffff' }),
       'default',
       config.shellColor,
+      {
+        shellFinish: config.shellFinish,
+        albedoRef: config.albedoRef,
+        plasticMask: mask,
+      },
     )
     const hasInner = prepared.parts.some((part) => part.roles.includes('inner'))
-    const inner = hasInner
+    const inner = hasInner && !config.preserveInnerMaterials
       ? new THREE.MeshPhysicalMaterial({
           ...maps,
           color: '#ffffff',
@@ -78,8 +100,15 @@ function Cartridge({ platform, label, motion, onReady }) {
         })
       : null
     const finish = labelFinishParameters('default')
+    const labelUv = config.labelUv
+    const uvWindow = new THREE.Vector4(
+      labelUv?.u?.[0] ?? 0,
+      labelUv?.v?.[0] ?? 0,
+      (labelUv?.u?.[1] ?? 1) - (labelUv?.u?.[0] ?? 0),
+      (labelUv?.v?.[1] ?? 1) - (labelUv?.v?.[0] ?? 0),
+    )
     const art = new THREE.MeshPhysicalMaterial({
-      map: textures[entries.length],
+      map: artTexture,
       roughness: finish.roughness,
       metalness: finish.metalness,
       clearcoat: finish.clearcoat,
@@ -89,6 +118,15 @@ function Cartridge({ platform, label, motion, onReady }) {
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -2,
     })
+    art.onBeforeCompile = (shader) => {
+      shader.uniforms.panoplyUvWindow = { value: uvWindow }
+      shader.vertexShader = `uniform vec4 panoplyUvWindow;\n${shader.vertexShader}`
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <uv_vertex>',
+        `#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv = (vMapUv - panoplyUvWindow.xy) / panoplyUvWindow.zw;\n#endif`,
+      )
+    }
+    art.customProgramCacheKey = () => 'showcase-label-uv-v1'
     const owned = [shell, inner, art].filter(Boolean)
     const resolved = prepared.parts.map((part) => {
       const choices = part.materials.map((material, i) => {
@@ -99,7 +137,11 @@ function Cartridge({ platform, label, motion, onReady }) {
           owned.push(copy)
           return copy
         }
-        if (part.roles[i] === 'inner' && inner) return inner
+        if (part.roles[i] === 'inner') {
+          // The newer shells ship their own board maps; keep them as authored.
+          if (config.preserveInnerMaterials) return material
+          if (inner) return inner
+        }
         if (part.roles[i] === 'label') return art
         const copy = material.clone()
         owned.push(copy)
@@ -108,7 +150,7 @@ function Cartridge({ platform, label, motion, onReady }) {
       return part.materialArray ? choices : choices[0]
     })
     return { resolved, owned }
-  }, [config, entries, prepared, textures])
+  }, [config, entries, prepared, configuredTextures])
 
   // Fit the whole cartridge inside the visible stage instead of trusting a
   // single normalised height: the four shells have very different proportions.
@@ -273,9 +315,8 @@ export default function CartridgeShowcase({ platform, platformName, title, label
       <div ref={stage} className="showcase-stage" data-input="still" role="img" aria-label={description}>
         <Canvas
           dpr={[1, 2]}
-          camera={{ position: [0, 0, 4.4], fov: 32, near: 0.1, far: 60 }}
+          camera={{ position: [0, 0.15, 7.4], fov: 35, near: 0.1, far: 60 }}
           gl={{ alpha: true, antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping }}
-          onCreated={({ gl }) => { gl.toneMappingExposure = 0.75 }}
           fallback={<span className="showcase-fallback">{platformName} cartridge</span>}
         >
           <StudioEnvironment />

@@ -97,6 +97,23 @@ const SHELL_FINISHES = {
   metallic: { roughness: 0.32, metalness: 0.92, clearcoat: 0.42, opacity: 1 },
 }
 
+// A chosen colour is a pigment in plastic, not paint on top of it. The studio
+// lights a shell about three times brighter than its albedo, so the colour is
+// laid down at a fraction of itself, the lightest plastics a step further down.
+const PLASTIC_EXPOSURE = 0.4
+function plasticPigment(color) {
+  const max = Math.max(color.r, color.g, color.b)
+  const min = Math.min(color.r, color.g, color.b)
+  const sat = max > 0 ? (max - min) / max : 0
+  const luma = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b
+  const value = (1 - 0.08 * sat * sat) * (1 - 0.3 * THREE.MathUtils.smoothstep(luma, 0.45, 0.9))
+  return color.setRGB(
+    (luma + (color.r - luma)) * value,
+    (luma + (color.g - luma)) * value,
+    (luma + (color.b - luma)) * value,
+  )
+}
+
 function normalizeShellFinish(value) {
   if (value === 'metal') return 'metallic'
   if (value === 'matte') return 'opaque'
@@ -104,15 +121,27 @@ function normalizeShellFinish(value) {
   return SHELL_FINISHES[value] ? value : 'default'
 }
 
-export function configureShellMaterial(material, finishName, tint) {
+export function configureShellMaterial(material, finishName, tint, options = {}) {
   const finish = normalizeShellFinish(finishName)
   const values = SHELL_FINISHES[finish]
+  const { shellFinish = null, albedoRef = null, plasticMask = null } = options
+  const opaqueTint = Boolean(tint) && finish !== 'metallic'
   if (tint && material.color) material.color.set(tint)
+  // The colour names the plastic's pigment, so it sits at the studio's exposure
+  // rather than at full brightness over the map.
+  if (opaqueTint && material.color) plasticPigment(material.color).multiplyScalar(PLASTIC_EXPOSURE)
   if ('roughness' in material) material.roughness = values.roughness
   if ('metalness' in material) material.metalness = values.metalness
+  // A model's own finish scales its maps rather than replacing them.
+  if (shellFinish) {
+    if ('roughness' in material && Number.isFinite(shellFinish.roughness)) material.roughness = shellFinish.roughness
+    if ('metalness' in material && Number.isFinite(shellFinish.metalness)) material.metalness = shellFinish.metalness
+  }
   if (finish === 'metallic') material.metalnessMap = null
   if ('clearcoat' in material) material.clearcoat = values.clearcoat
   if ('clearcoatRoughness' in material) material.clearcoatRoughness = Math.min(0.45, values.roughness)
+  if ('specularIntensity' in material) material.specularIntensity = opaqueTint ? 0.6 : 1
+  material.envMapIntensity = 1
   material.transparent = values.opacity < 1
   material.opacity = values.opacity
   material.depthWrite = values.opacity >= 0.7
@@ -187,17 +216,33 @@ export function configureShellMaterial(material, finishName, tint) {
   if (tint && material.map) {
     const surfaceShader = material.onBeforeCompile
     const surfaceKey = material.customProgramCacheKey()
+    // With a reference plastic colour, the map's plastic is divided out before
+    // the shell colour multiplies it. A mask keeps screws, stickers and the
+    // board in their own colours instead of painting them too.
+    const reference = albedoRef ? new THREE.Color(albedoRef) : null
     material.onBeforeCompile = (shader, renderer) => {
       surfaceShader.call(material, shader, renderer)
+      if (reference) {
+        shader.uniforms.panoplyAlbedoRef = { value: reference }
+        if (plasticMask) shader.uniforms.panoplyPlasticMask = { value: plasticMask }
+        shader.fragmentShader = `
+          uniform vec3 panoplyAlbedoRef;
+          ${plasticMask ? 'uniform sampler2D panoplyPlasticMask;' : ''}
+        ${shader.fragmentShader}`
+      }
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <map_fragment>',
         THREE.ShaderChunk.map_fragment.replace(
           'diffuseColor *= sampledDiffuseColor;',
-          'float shellLuma = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));\ndiffuseColor *= vec4(vec3(mix(1.0, shellLuma, 0.18)), sampledDiffuseColor.a);',
+          reference
+            ? `vec3 shellNeutral = min((sampledDiffuseColor.rgb + 0.03) / (panoplyAlbedoRef + 0.03), vec3(1.0));
+              float shellPlastic = ${plasticMask ? 'texture2D(panoplyPlasticMask, vMapUv).r' : '1.0'};
+              diffuseColor.rgb = mix(sampledDiffuseColor.rgb, diffuseColor.rgb * shellNeutral, shellPlastic);`
+            : 'float shellLuma = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));\ndiffuseColor *= vec4(vec3(mix(1.0, shellLuma, 0.18)), sampledDiffuseColor.a);',
         ),
       )
     }
-    material.customProgramCacheKey = () => `${surfaceKey}-shell-tint-v1`
+    material.customProgramCacheKey = () => `${surfaceKey}-shell-tint-v2`
   }
   material.needsUpdate = true
   return material

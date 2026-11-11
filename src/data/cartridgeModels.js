@@ -1,6 +1,6 @@
 // Cartridge model configs copied from Panoply's src/data/games.js (N64, GBA, DS,
-// Switch). Only the model definitions are kept; the carousel shelves are not
-// used here. The models and textures are byte-identical to Panoply's.
+// Switch, SNES). Only the model definitions are kept; the carousel shelves are
+// not used here. Shells are repacked and their maps lightened for the web.
 import lineup from './lineup.json'
 
 const model = (url, labelNodes, options = {}) => ({ url, labelNodes, ...options })
@@ -48,16 +48,30 @@ export const MODELS = {
       aoMap: '/textures/switch/ambient-occlusion.png',
     },
   }),
-  snes: model('/models/snes/cartridge.glb', ['Object_4_001'], {
-    shellNodes: ['Object_42'],
-    shellMaterials: ['Material.001'],
+  snes: model('/models/snes/cartridge.glb', ['Label'], {
+    // The newer US shell from Panoply: a separate label, the black strip over
+    // the top edge, and the board inside. Only the front label is replaced.
+    shellNodes: ['Shell'],
+    innerNodes: ['Board'],
+    preserveInnerMaterials: true,
     faceRotation: 0,
+    // The model's maps carry its plastic's polish, so the shell values scale
+    // them: at 1.8 the grain reads as satin rather than glitter.
+    shellFinish: { roughness: 1.8, metalness: 1 },
     shellMaps: {
-      map: '/textures/snes/base-color.jpg',
-      normalMap: '/textures/snes/normal.jpg',
-      roughnessMap: '/textures/snes/metallic-roughness.jpg',
-      metalnessMap: '/textures/snes/metallic-roughness.jpg',
+      map: '/textures/snes/base-color.webp',
+      normalMap: '/textures/snes/normal.webp',
+      roughnessMap: '/textures/snes/mr.webp',
+      metalnessMap: '/textures/snes/mr.webp',
     },
+    // The mask keeps screws, stickers and contacts in their own colours while
+    // the plastic takes the shell grey.
+    plasticMask: '/textures/snes/plastic-mask.png',
+    albedoRef: '#757381',
+    shellColor: '#a7a599',
+    // The label mesh samples this window of the shell atlas rather than the
+    // whole texture, so the label material maps it back to the full face.
+    labelUv: { u: [0.004906, 0.339399], v: [0.230855, 0.381595] },
   }),
   nes: model('/models/nes/cartridge.glb', ['Object_001'], {
     // The GLB nodes are authored lying flat; Panoply's rotation stands the

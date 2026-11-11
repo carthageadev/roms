@@ -54,13 +54,7 @@ export function HomeHero() {
   return (
     <main className="archive-home" aria-labelledby="home-title">
       <div className="archive-home-inner">
-        <header className="archive-masthead rise" style={rise(0)}>
-          <span className="archive-name">roms.tn</span>
-          <span className="archive-masthead-divider" aria-hidden="true" />
-          <span className="archive-masthead-note">Field notes on cartridges</span>
-        </header>
-
-        <div className="showcase-slot rise" style={rise(1)}>
+        <div className="showcase-slot rise" style={rise(0)}>
           {choice ? (
             <CartridgeShowcase
               platform={choice.platform}
@@ -74,26 +68,12 @@ export function HomeHero() {
         </div>
 
         <section className="archive-intro">
-          <p className="archive-eyebrow rise" style={rise(2)}>
-            A physical archive
-          </p>
-          <h1 id="home-title" className="rise" style={rise(3)}>
-            The object is<br />{" "}
-            <span>the archive.</span>
+          <h1 id="home-title" className="rise" style={rise(1)}>
+            The object is the archive.
           </h1>
-          <p className="archive-description rise" style={rise(4)}>
-            Every release leaves a trace in the plastic. The shape of a shell, the cut of a
-            notch, the thread of a screw, the chips beneath the label. roms.tn is an upcoming
-            catalogue of those details, for anyone who still turns a cartridge over in their
-            hands.
+          <p className="archive-description rise" style={rise(2)}>
+            A catalogue of cartridges. Opening soon.
           </p>
-          <div className="archive-access rise" style={rise(5)}>
-            <button className="access-status" type="button" disabled>
-              <span className="access-status-dot" aria-hidden="true" />
-              Access closed
-            </button>
-            <p>Opening soon.</p>
-          </div>
         </section>
       </div>
     </main>
