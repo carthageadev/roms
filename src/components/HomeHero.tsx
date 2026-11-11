@@ -7,6 +7,8 @@ import {
   LINEUP_TITLES,
   PLATFORM_NAMES,
   SHOWCASE_PLATFORMS,
+  SHOWCASE_SPECIALS,
+  SPECIAL_SPAWN_CHANCE,
 } from "../data/cartridgeModels.js";
 
 // Keep WebGL out of the initial page and leave the copy usable without it.
@@ -16,30 +18,40 @@ const CartridgeShowcase = dynamic(() => import("../three/CartridgeShowcase.jsx")
 });
 
 type Game = { title: string; cover: string };
+type Special = Game & { variant?: string };
 
 type ShowcaseChoice = {
   platform: string;
   platformName: string;
   title: string;
   label: string;
+  variant?: string;
 };
 
 const platforms = SHOWCASE_PLATFORMS as string[];
 const titles = LINEUP_TITLES as Record<string, Game[]>;
+const specials = SHOWCASE_SPECIALS as Record<string, Special[]>;
 const names = PLATFORM_NAMES as Record<string, string>;
 const rise = (step: number) => ({ "--rise": step } as CSSProperties);
 
 // One system per visit, drawn after mount so the server and the client agree
 // on the same first paint. A visit only downloads the shell and label it shows.
+// Zelda's gold NES carts are a rare draw within the NES.
 function pickShowcase(): ShowcaseChoice {
   const platform = platforms[Math.floor(Math.random() * platforms.length)];
+  const skins = specials[platform] ?? [];
+  const special =
+    skins.length > 0 && Math.random() < SPECIAL_SPAWN_CHANCE
+      ? skins[Math.floor(Math.random() * skins.length)]
+      : null;
   const games = titles[platform] ?? [];
-  const game = games[Math.floor(Math.random() * games.length)];
+  const game = special ?? games[Math.floor(Math.random() * games.length)];
   return {
     platform,
     platformName: names[platform] ?? platform,
     title: game?.title ?? names[platform] ?? platform,
     label: game?.cover ?? "/label-placeholder.svg",
+    variant: special?.variant,
   };
 }
 
@@ -61,6 +73,7 @@ export function HomeHero() {
               platformName={choice.platformName}
               title={choice.title}
               label={choice.label}
+              variant={choice.variant}
             />
           ) : (
             <div className="showcase-loading" aria-hidden="true" />

@@ -4,7 +4,8 @@
 
 The home page is a dark, minimal coming-soon page for an archive of the physical details of game cartridges.
 
-- One cartridge is drawn per visit, picked from Game Boy Advance, Nintendo DS, Super Nintendo and NES. Only that system's shell and one locally stored label are downloaded.
+- One cartridge is drawn per visit, picked from Game Boy Advance, Nintendo DS, Super Nintendo and NES. A visit that draws the NES can instead draw one of the two gold Zelda Game Paks, with the gold shell maps and its own label. Only the chosen system's shell, skin and one locally stored label are downloaded.
+- The stage uses MSAA and FXAA, with a warm key from the left, a cool fill and a back rim, so the cartridge reads in relief against the dark page.
 - The cartridge responds gently to the mouse and, on supported phones, relative device orientation. iOS asks for motion permission only when the visitor selects **Move with your phone**; a denied or unavailable sensor leaves the page usable. Reduced-motion preferences disable the float and input movement.
 - The 3D view is a separate chunk. The home page does not query the database, fetch artwork from a remote service, or show the old lists interface. Existing API routes and data remain in the repository.
 - `scripts/fetch-covers.mjs` can refresh local labels and covers (`--force`, `--only=<id>`, `--set=labels`). `src/three/**` is excluded from lint because Three.js mutates objects in the frame loop.

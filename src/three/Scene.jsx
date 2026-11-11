@@ -140,8 +140,18 @@ export function configureShellMaterial(material, finishName, tint, options = {})
   if (finish === 'metallic') material.metalnessMap = null
   if ('clearcoat' in material) material.clearcoat = values.clearcoat
   if ('clearcoatRoughness' in material) material.clearcoatRoughness = Math.min(0.45, values.roughness)
+  if (shellFinish) {
+    if ('clearcoat' in material && Number.isFinite(shellFinish.clearcoat)) material.clearcoat = shellFinish.clearcoat
+    if ('clearcoatRoughness' in material && Number.isFinite(shellFinish.clearcoatRoughness)) {
+      material.clearcoatRoughness = shellFinish.clearcoatRoughness
+    }
+    if (material.normalScale && Number.isFinite(shellFinish.normalStrength)) {
+      material.normalScale.setScalar(shellFinish.normalStrength)
+    }
+  }
   if ('specularIntensity' in material) material.specularIntensity = opaqueTint ? 0.6 : 1
   material.envMapIntensity = 1
+  if (shellFinish && Number.isFinite(shellFinish.envIntensity)) material.envMapIntensity = shellFinish.envIntensity
   material.transparent = values.opacity < 1
   material.opacity = values.opacity
   material.depthWrite = values.opacity >= 0.7
@@ -313,11 +323,13 @@ export function SceneLighting({ carousel, multiplier = 1 }) {
 
   return (
     <>
-      <ambientLight ref={ambient} intensity={DEFAULT_LIGHTING_PROFILE.ambient * multiplier} />
+      <ambientLight ref={ambient} color="#aab4c4" intensity={DEFAULT_LIGHTING_PROFILE.ambient * multiplier} />
       {/* R3F v9 + three r184: a plain-object position prop is assigned directly, and light.position is read-only, so pass an array. */}
-      <directionalLight ref={key} position={[DEFAULT_LIGHTING_PROFILE.keyPosition.x, DEFAULT_LIGHTING_PROFILE.keyPosition.y, DEFAULT_LIGHTING_PROFILE.keyPosition.z]} intensity={DEFAULT_LIGHTING_PROFILE.key * multiplier} />
-      <directionalLight ref={fill} position={[-5, 2, -3]} intensity={DEFAULT_LIGHTING_PROFILE.fill * multiplier} />
-      <directionalLight ref={rim} position={[0, -3, 4]} intensity={DEFAULT_LIGHTING_PROFILE.rim * multiplier} />
+      {/* A point key with no falloff reads like the old directional light but
+          throws a real side gradient across the shell instead of a flat wash. */}
+      <pointLight ref={key} decay={0} distance={0} color="#fff1df" position={[DEFAULT_LIGHTING_PROFILE.keyPosition.x, DEFAULT_LIGHTING_PROFILE.keyPosition.y, DEFAULT_LIGHTING_PROFILE.keyPosition.z]} intensity={DEFAULT_LIGHTING_PROFILE.key * multiplier} />
+      <directionalLight ref={fill} color="#a3b3cf" position={[5.5, 1.4, 2.6]} intensity={DEFAULT_LIGHTING_PROFILE.fill * multiplier} />
+      <directionalLight ref={rim} color="#e7efff" position={[3.6, 3.2, -5]} intensity={DEFAULT_LIGHTING_PROFILE.rim * multiplier} />
     </>
   )
 }

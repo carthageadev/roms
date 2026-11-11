@@ -13,35 +13,62 @@ const browser = await chromium.launch({
 const errors = []
 
 // The showcase picks a system after mount. Pinning Math.random keeps each run
-// deterministic: it draws the platform, then one of that system's games.
-const PLATFORMS = {
+// deterministic: it draws the platform, then (on the NES) the gold special roll,
+// then one of that system's games. The first two calls stay distinct for React.
+const FIXTURES = {
   gba: {
+    platform: 'gba',
     random: 0.1,
     system: 'Game Boy Advance',
     game: 'Metroid Fusion',
     label: '/images/labels/metroid-fusion.png',
   },
   nds: {
+    platform: 'nds',
     random: 0.4,
     system: 'Nintendo DS',
     game: 'New Super Mario Bros.',
     label: '/images/labels/new-super-mario-bros.png',
   },
   snes: {
+    platform: 'snes',
     random: 0.6,
     system: 'Super Nintendo',
     game: 'Chrono Trigger',
     label: '/images/labels/chrono-trigger.png',
   },
   nes: {
+    platform: 'nes',
     random: 0.9,
     system: 'Nintendo Entertainment System',
     game: 'Mega Man 2',
     label: '/images/labels/mega-man-2.png',
+    forbid: ['/textures/nes/gold/'],
+  },
+  'nes-gold': {
+    platform: 'nes',
+    random: [0.9, 0.05, 0.0],
+    system: 'Nintendo Entertainment System',
+    game: 'The Legend of Zelda',
+    label: '/images/labels/zelda-gold.png',
+    variant: 'gold',
+    maps: ['/textures/nes/gold/base-color.webp', '/textures/nes/gold/mr.webp'],
+    forbid: ['/textures/nes/base-color.webp', '/textures/nes/mr.png'],
+  },
+  'nes-gold-2': {
+    platform: 'nes',
+    random: [0.9, 0.05, 0.99],
+    system: 'Nintendo Entertainment System',
+    game: 'Zelda II: The Adventure of Link',
+    label: '/images/labels/zelda-ii-gold.png',
+    variant: 'gold',
+    maps: ['/textures/nes/gold/base-color.webp', '/textures/nes/gold/mr.webp'],
+    forbid: ['/textures/nes/base-color.webp', '/textures/nes/mr.png'],
   },
 }
 
 async function makeContext({ viewport, platform, reducedMotion, mobile = false, permission }) {
+  const fixture = FIXTURES[platform]
   const context = await browser.newContext({
     viewport,
     deviceScaleFactor: 1,
@@ -49,18 +76,18 @@ async function makeContext({ viewport, platform, reducedMotion, mobile = false, 
     isMobile: mobile,
     hasTouch: mobile,
   })
-  await context.addInitScript((value) => {
+  await context.addInitScript((values) => {
     // React uses the first two random values for its internal event keys.
     // Pinning every call to one number collides those keys, so keep the first
-    // two distinct and only then pin the platform draw.
+    // two distinct and only then walk the fixture's draw sequence.
     let call = 0
     Math.random = () => {
       call += 1
       if (call === 1) return 0.13
       if (call === 2) return 0.72
-      return value
+      return values[Math.min(call - 3, values.length - 1)]
     }
-  }, PLATFORMS[platform].random)
+  }, Array.isArray(fixture.random) ? fixture.random : [fixture.random])
   if (permission) {
     await context.addInitScript((result) => {
       class MockOrientationEvent extends Event {
@@ -78,6 +105,7 @@ async function makeContext({ viewport, platform, reducedMotion, mobile = false, 
 }
 
 async function openPage(context, platform) {
+  const fixture = FIXTURES[platform]
   const requests = []
   context.on('request', (request) => requests.push(new URL(request.url()).pathname))
   const page = await context.newPage()
@@ -87,8 +115,9 @@ async function openPage(context, platform) {
   })
   await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 120000 })
   await expect(page.locator('.showcase[data-ready="true"]')).toBeVisible({ timeout: 180000 })
-  const fixture = PLATFORMS[platform]
-  await expect(page.locator('.showcase')).toHaveAttribute('data-platform', platform)
+  await expect(page.locator('.showcase')).toHaveAttribute('data-platform', fixture.platform)
+  await expect(page.locator('.showcase')).toHaveAttribute('data-variant', fixture.variant ?? 'standard')
+  await expect(page.locator('.showcase')).toHaveAttribute('data-fxaa', 'true')
   await expect(page.getByRole('img', { name: `A floating ${fixture.system} cartridge with a ${fixture.game} label` })).toBeVisible()
   await expect(page.locator('.showcase-system')).toHaveText(fixture.system)
   await expect(page.locator('.showcase-game')).toHaveText(fixture.game)
@@ -99,11 +128,18 @@ async function openPage(context, platform) {
 }
 
 async function expectOnlyPlatform(requests, platform) {
-  for (const other of Object.keys(PLATFORMS)) {
+  const fixture = FIXTURES[platform]
+  for (const other of ['gba', 'nds', 'snes', 'nes']) {
     const modelRequested = requests.some((path) => path.startsWith(`/models/${other}/`))
-    assert.equal(modelRequested, other === platform, `only the ${platform} shell should be requested`)
+    assert.equal(modelRequested, other === fixture.platform, `only the ${fixture.platform} shell should be requested`)
   }
-  assert.equal(requests.includes(PLATFORMS[platform].label), true, `the ${platform} label should be requested`)
+  assert.equal(requests.includes(fixture.label), true, `the ${fixture.platform} label should be requested`)
+  for (const map of fixture.maps ?? []) {
+    assert.equal(requests.includes(map), true, `the ${fixture.variant} skin should request ${map}`)
+  }
+  for (const path of fixture.forbid ?? []) {
+    assert.equal(requests.some((request) => request.startsWith(path)), false, `the unused skin must not request ${path}`)
+  }
   assert.equal(requests.some((path) => path.startsWith('/api/')), false, 'the page must not fetch an API')
 }
 
@@ -147,7 +183,7 @@ try {
   await expect(page.getByRole('button', { name: 'Move with your phone' })).toHaveCount(0)
   await desktop.close()
 
-  // The other three shells, each on the viewport where it is most awkward.
+  // The other shells, each on the viewport where it is most awkward.
   for (const [platform, viewport, mobile] of [
     ['snes', { width: 1440, height: 900 }, false],
     ['nds', { width: 390, height: 844 }, true],
@@ -162,6 +198,22 @@ try {
     await context.close()
   }
   console.log('PASS: SNES, DS, and NES shells each load alone and fit their layout')
+
+  // Gold Zelda NES specials: the gold skin and its label replace, never join,
+  // the grey shell. One is desktop, one is the narrowest phone.
+  for (const [platform, viewport, mobile] of [
+    ['nes-gold', { width: 1440, height: 900 }, false],
+    ['nes-gold-2', { width: 320, height: 640 }, true],
+  ]) {
+    const context = await makeContext({ viewport, platform, mobile })
+    const opened = await openPage(context, platform)
+    await expectOnlyPlatform(opened.requests, platform)
+    assert.equal(await fits(opened.page), true, `${platform} gold special should fit one screen`)
+    await expect(opened.page.locator('.archive-description')).toBeInViewport()
+    await opened.page.screenshot({ path: `artifacts/home-${platform}.png` })
+    await context.close()
+  }
+  console.log('PASS: both gold Zelda specials spawn with only the gold skin and label')
 
   // Reduced motion: no float, no pointer response, no tilt response.
   const reducedContext = await makeContext({ viewport: { width: 390, height: 844 }, platform: 'gba', mobile: true, reducedMotion: 'reduce' })

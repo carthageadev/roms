@@ -73,13 +73,48 @@ export const MODELS = {
     // whole texture, so the label material maps it back to the full face.
     labelUv: { u: [0.004906, 0.339399], v: [0.230855, 0.381595] },
   }),
-  nes: model('/models/nes/cartridge.glb', ['Object_001'], {
-    // The GLB nodes are authored lying flat; Panoply's rotation stands the
-    // shell up and turns the label toward the camera. Its nine shell materials
-    // carry the grey tones and the brown grip, so they are kept as authored.
-    rotation: [-Math.PI / 2, Math.PI, 0],
-    shellNodes: ['Object'],
-    preserveShellMaterials: true,
+  nes: model('/models/nes/cartridge.glb', ['Label'], {
+    // Panoply's full NES shell: a separate front label, the paper back, the
+    // foil caution sticker, the board edge and the screws. The board keeps its
+    // own maps; the shell takes one of the two skins below.
+    shellNodes: ['Shell'],
+    innerNodes: ['BoardEdge', 'Board', 'Parts', 'Legs'],
+    preserveInnerMaterials: true,
+    // The maps carry the plastic's polish (and the gold's metal), so these
+    // values scale them rather than replacing them.
+    shellFinish: {
+      roughness: 0.78,
+      metalness: 1,
+      normalStrength: 1.14,
+      clearcoat: 0.3,
+      clearcoatRoughness: 0.61,
+    },
+    shellMaps: {
+      map: '/textures/nes/base-color.webp',
+      normalMap: '/textures/nes/normal.webp',
+      roughnessMap: '/textures/nes/mr.png',
+      metalnessMap: '/textures/nes/mr.png',
+    },
+    // The special Zelda carts are the real gold Game Paks, not a tinted grey
+    // shell. Only the chosen skin's maps are requested.
+    variants: {
+      gold: {
+        shellMaps: {
+          map: '/textures/nes/gold/base-color.webp',
+          normalMap: '/textures/nes/gold/normal.webp',
+          roughnessMap: '/textures/nes/gold/mr.webp',
+          metalnessMap: '/textures/nes/gold/mr.webp',
+        },
+        shellFinish: {
+          roughness: 1.1,
+          metalness: 1,
+          normalStrength: 1,
+          clearcoat: 0,
+          envIntensity: 0.7,
+        },
+        look: { tint: '#f3f5fb', brightness: 0.6, clearcoat: 0 },
+      },
+    },
   }),
 }
 
@@ -89,6 +124,17 @@ export const PLATFORM_ORDER = ['n64', 'gba', 'nds', 'switch']
 // The games behind these are the ones whose labels already live in
 // public/images/labels, so a visit only ever downloads one model and one label.
 export const SHOWCASE_PLATFORMS = ['gba', 'nds', 'snes', 'nes']
+
+// A visit that draws the NES can instead draw one of its gold Zelda Game
+// Paks. The chance is rolled once, after the platform, and only systems with
+// specials take part, so every other system still draws exactly one game.
+export const SPECIAL_SPAWN_CHANCE = 0.35
+export const SHOWCASE_SPECIALS = {
+  nes: [
+    { title: 'The Legend of Zelda', cover: '/images/labels/zelda-gold.png', variant: 'gold' },
+    { title: 'Zelda II: The Adventure of Link', cover: '/images/labels/zelda-ii-gold.png', variant: 'gold' },
+  ],
+}
 
 export const LINEUP_SIZE = 12
 

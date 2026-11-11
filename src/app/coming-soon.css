@@ -10,8 +10,9 @@ body { background: #08090b; color: #e8ebef; }
   padding: clamp(22px, 4.6vh, 52px) 24px;
   overflow: hidden;
   background:
-    radial-gradient(58% 48% at 50% 36%, rgba(122, 143, 168, 0.055) 0%, transparent 72%),
-    #08090b;
+    radial-gradient(72% 58% at 6% 34%, rgba(132, 160, 198, 0.09) 0%, transparent 62%),
+    radial-gradient(52% 48% at 88% 72%, rgba(186, 154, 99, 0.04) 0%, transparent 68%),
+    #07080a;
 }
 .archive-home-inner {
   position: relative;
@@ -35,7 +36,21 @@ body { background: #08090b; color: #e8ebef; }
   display: flex;
   flex-direction: column;
   align-items: center;
+  isolation: isolate;
 }
+/* The gold Game Paks get a quiet warm bloom, not a badge. */
+.showcase[data-variant="gold"]::before {
+  content: "";
+  position: absolute;
+  inset: 6% -8% 14%;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(214, 170, 92, 0.14) 0%, rgba(214, 170, 92, 0.045) 46%, transparent 72%);
+  filter: blur(10px);
+}
+.showcase[data-variant="gold"] .showcase-system { color: #b7985f; }
+.showcase[data-variant="gold"] .showcase-game { color: #efe3c8; }
 .showcase-stage { position: relative; z-index: 1; width: 100%; height: var(--stage-h); }
 .showcase-stage canvas {
   display: block;

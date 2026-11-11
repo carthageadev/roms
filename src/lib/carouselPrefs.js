@@ -21,11 +21,11 @@ export const DEFAULT_CUSTOM_POSE_NAME = 'Custom tilt'
 export const LIGHT_STRENGTH_MIN = 0
 export const LIGHT_STRENGTH_MAX = 2.5
 export const DEFAULT_LIGHTING_PROFILE = Object.freeze({
-  ambient: 0.65,
-  key: 1.6,
-  fill: 0.5,
-  rim: 0.25,
-  keyPosition: Object.freeze({ x: 4, y: 5, z: 6 }),
+  ambient: 0.3,
+  key: 2.45,
+  fill: 0.24,
+  rim: 0.95,
+  keyPosition: Object.freeze({ x: -5.4, y: 3.4, z: 5.2 }),
 })
 export const FLOAT_LEVELS = Object.freeze([
   { id: 'off', label: 'Off', value: 0 },

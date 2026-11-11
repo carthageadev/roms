@@ -1,6 +1,8 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
+import { EffectComposer, FXAA, ToneMapping } from '@react-three/postprocessing'
+import { ToneMappingMode } from 'postprocessing'
 import * as THREE from 'three'
 import { MODELS } from '../data/cartridgeModels.js'
 import { configureShellMaterial, labelFinishParameters, prepareModel, SceneLighting } from './Scene.jsx'
@@ -32,8 +34,12 @@ function StudioEnvironment() {
   return null
 }
 
-function Cartridge({ platform, label, motion, onReady }) {
-  const config = MODELS[platform]
+function Cartridge({ platform, variant, label, motion, onReady }) {
+  const baseConfig = MODELS[platform]
+  const config = useMemo(() => {
+    const skin = variant ? baseConfig.variants?.[variant] : null
+    return skin ? { ...baseConfig, ...skin } : baseConfig
+  }, [baseConfig, variant])
   const restYaw = config.faceRotation ?? Math.PI
   const group = useRef(null)
   const { scene } = useGLTF(config.url)
@@ -88,6 +94,12 @@ function Cartridge({ platform, label, motion, onReady }) {
         plasticMask: mask,
       },
     )
+    if (config.look) {
+      const look = config.look
+      if (look.tint) shell.color.set(look.tint).multiplyScalar(look.brightness ?? 1)
+      if (Number.isFinite(look.roughness)) shell.roughness = look.roughness
+      if (Number.isFinite(look.clearcoat)) shell.clearcoat = look.clearcoat
+    }
     const hasInner = prepared.parts.some((part) => part.roles.includes('inner'))
     const inner = hasInner && !config.preserveInnerMaterials
       ? new THREE.MeshPhysicalMaterial({
@@ -217,7 +229,10 @@ function Cartridge({ platform, label, motion, onReady }) {
 const clamp = (value) => Math.max(-1, Math.min(1, value))
 const angleDelta = (value, baseline) => ((value - baseline + 540) % 360) - 180
 
-export default function CartridgeShowcase({ platform, platformName, title, label }) {
+/**
+ * @param {{ platform: string, platformName: string, title: string, label: string, variant?: string | null }} props
+ */
+export default function CartridgeShowcase({ platform, platformName, title, label, variant = null }) {
   const motion = useRef({ x: 0, y: 0, reduced: false })
   const stage = useRef(null)
   const orientationBaseline = useRef(null)
@@ -311,7 +326,13 @@ export default function CartridgeShowcase({ platform, platformName, title, label
   const description = `A floating ${platformName} cartridge with a ${title} label`
 
   return (
-    <div className="showcase" data-ready={ready ? 'true' : 'false'} data-platform={platform}>
+    <div
+      className="showcase"
+      data-ready={ready ? 'true' : 'false'}
+      data-platform={platform}
+      data-variant={variant || 'standard'}
+      data-fxaa="true"
+    >
       <div ref={stage} className="showcase-stage" data-input="still" role="img" aria-label={description}>
         <Canvas
           dpr={[1, 2]}
@@ -322,8 +343,14 @@ export default function CartridgeShowcase({ platform, platformName, title, label
           <StudioEnvironment />
           <SceneLighting carousel={LIGHT_STATE} />
           <Suspense fallback={null}>
-            <Cartridge platform={platform} label={label} motion={motion} onReady={onReady} />
+            <Cartridge platform={platform} variant={variant} label={label} motion={motion} onReady={onReady} />
           </Suspense>
+          {/* Aggressive edge smoothing over the whole frame. The composer
+              renders the transparent stage, so the page gradient stays put. */}
+          <EffectComposer multisampling={4}>
+            <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+            <FXAA />
+          </EffectComposer>
         </Canvas>
       </div>
       <div className="showcase-caption" aria-hidden="true">
