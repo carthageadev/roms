@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <style>
+    :root { color-scheme: light dark; }
+    .ink { fill: #1c211b; }
+    .line { stroke: #1c211b; }
+    @media (prefers-color-scheme: dark) {
+      .ink { fill: #f4f7fa; }
+      .line { stroke: #f4f7fa; }
+    }
+  </style>
+  <rect class="line" x="13" y="6.5" width="38" height="51" rx="9" fill="none" stroke-width="4"/>
+  <rect class="ink" x="21.5" y="13" width="21" height="15" rx="3"/>
+  <path class="ink" d="M25.4 39.5h13.2c1.6 0 2.6 1.7 1.8 3.1l-6.6 10.6c-.8 1.3-2.8 1.3-3.6 0l-6.6-10.6c-.8-1.4.2-3.1 1.8-3.1Z"/>
+</svg>
