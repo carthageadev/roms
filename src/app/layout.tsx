@@ -5,17 +5,17 @@ import "./globals.css";
 import "./home-dark.css";
 import "./coming-soon.css";
 
-const dmSans = localFont({ src: "../../public/fonts/dm-sans.ttf", display: "swap", variable: "--font-dm-sans", weight: "100 1000" });
+const instrumentSans = localFont({ src: "../../public/fonts/instrument-sans.ttf", display: "swap", variable: "--font-instrument-sans", weight: "400 700" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://roms.tn"),
   title: "roms.tn  -  The object is the archive",
   description: "A field guide to the physical details of game cartridges: shells, chips, notches, screws, and the small differences between releases.",
   applicationName: "roms.tn",
-  icons: { icon: "/icon.svg" },
+  icons: { icon: { url: "/icon.svg", type: "image/svg+xml", sizes: "any" } },
   openGraph: { title: "roms.tn  -  The object is the archive", description: "A field guide to the physical details of game cartridges.", type: "website" },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="en"><body className={`${dmSans.variable} antialiased`}>{children}</body></html>;
+  return <html lang="en"><body className={`${instrumentSans.variable} antialiased`}>{children}</body></html>;
 }

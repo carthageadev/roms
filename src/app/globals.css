@@ -6,12 +6,12 @@
   --muted: #85897f;
   --green: #627355;
   --line: #e6e9e0;
-  --font-sans: var(--font-dm-sans), Arial, Helvetica, sans-serif;
+  --font-sans: var(--font-instrument-sans), Arial, Helvetica, sans-serif;
 }
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { --font-sans: var(--font-dm-sans), Arial, Helvetica, sans-serif; margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-dm-sans), Arial, Helvetica, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
+body { --font-sans: var(--font-instrument-sans), Arial, Helvetica, sans-serif; margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-instrument-sans), Arial, Helvetica, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; transition: color .18s, background .18s, border-color .18s, transform .2s, opacity .18s; }
 button:disabled { cursor: not-allowed; opacity: .5; }

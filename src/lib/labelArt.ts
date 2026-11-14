@@ -52,7 +52,7 @@ export function labelArt(title: string, platformName: string, aspect = 1): strin
   ctx.fillRect(0, 0, W, 86);
 
   ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.font = "600 22px 'DM Sans', Arial, sans-serif";
+  ctx.font = "600 22px 'Instrument Sans', Arial, sans-serif";
   ctx.textBaseline = "middle";
   ctx.fillText("ROMS.TN", 36, 44);
 
@@ -77,7 +77,7 @@ export function labelArt(title: string, platformName: string, aspect = 1): strin
 
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#23262c";
-  ctx.font = "600 40px 'DM Sans', Arial, sans-serif";
+  ctx.font = "600 40px 'Instrument Sans', Arial, sans-serif";
   const lines = wrap(ctx, title, W - 72);
   lines.forEach((line, i) => ctx.fillText(line, 36, 400 + i * 46));
 
