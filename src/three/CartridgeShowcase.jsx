@@ -1,12 +1,14 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
-import { useGLTF } from '@react-three/drei'
+import { OrbitControls, useGLTF } from '@react-three/drei'
 import { EffectComposer, FXAA, ToneMapping } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
 import * as THREE from 'three'
-import { MODELS } from '../data/cartridgeModels.js'
+import { LABEL_ASPECT, MODELS } from '../data/cartridgeModels.js'
 import { configureShellMaterial, labelFinishParameters, prepareModel, SceneLighting } from './Scene.jsx'
 import { RoomEnvironment } from './roomEnvironment.js'
+import { INSPECT, LABEL_FIT, makeCheckerTexture } from './inspectState.js'
+import { InspectPanel } from './InspectPanel.jsx'
 
 const LIGHT_STATE = { pose: 'default' }
 // A phone reaches full input after this much tilt from its calibrated pose.
@@ -135,13 +137,18 @@ function Cartridge({ platform, variant, label, motion, onReady }) {
     })
     art.onBeforeCompile = (shader) => {
       shader.uniforms.panoplyUvWindow = { value: uvWindow }
-      shader.vertexShader = `uniform vec4 panoplyUvWindow;\n${shader.vertexShader}`
+      // Live fit from the inspect panel: the mapped UV is scaled and shifted
+      // before it reaches the texture, so the art can be nudged on the mesh
+      // without touching the image files.
+      shader.uniforms.panoplyUvRepeat = { value: LABEL_FIT.repeat }
+      shader.uniforms.panoplyUvOffset = { value: LABEL_FIT.offset }
+      shader.vertexShader = `uniform vec4 panoplyUvWindow;\nuniform vec2 panoplyUvRepeat;\nuniform vec2 panoplyUvOffset;\n${shader.vertexShader}`
       shader.vertexShader = shader.vertexShader.replace(
         '#include <uv_vertex>',
-        `#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv = (vMapUv - panoplyUvWindow.xy) / panoplyUvWindow.zw;\n#endif`,
+        `#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv = (vMapUv - panoplyUvWindow.xy) / panoplyUvWindow.zw;\nvMapUv = vMapUv * panoplyUvRepeat + panoplyUvOffset;\n#endif`,
       )
     }
-    art.customProgramCacheKey = () => 'showcase-label-uv-v1'
+    art.customProgramCacheKey = () => 'showcase-label-uv-v2'
     const owned = [shell, inner, art].filter(Boolean)
     const resolved = prepared.parts.map((part) => {
       const choices = part.materials.map((material, i) => {
@@ -164,6 +171,11 @@ function Cartridge({ platform, variant, label, motion, onReady }) {
       })
       return part.materialArray ? choices : choices[0]
     })
+    // The inspect panel drives these directly: the label material for the
+    // checker swap, and every material for the wireframe toggle.
+    INSPECT.art = art
+    INSPECT.allMaterials = owned
+    INSPECT.labelTexture = artTexture
     return { resolved, owned }
   }, [config, entries, prepared, configuredTextures])
 
@@ -191,6 +203,14 @@ function Cartridge({ platform, variant, label, motion, onReady }) {
   useFrame((state, delta) => {
     const node = group.current
     if (!node) return
+    // Inspect mode holds the cartridge dead still so the label can be judged
+    // and corrected without the idle float or pointer lean getting in the way.
+    if (INSPECT.active && INSPECT.freeze) {
+      node.position.set(0, 0, 0)
+      node.rotation.set(-0.035, restYaw, 0)
+      node.scale.setScalar(1)
+      return
+    }
     const { x, y, reduced } = motion.current
     const step = Math.min(delta, 0.1)
     const time = state.clock.elapsedTime
@@ -233,11 +253,86 @@ function Cartridge({ platform, variant, label, motion, onReady }) {
 const clamp = (value) => Math.max(-1, Math.min(1, value))
 const angleDelta = (value, baseline) => ((value - baseline + 540) % 360) - 180
 
+// Scene side of the inspect mode: orbit and zoom on the camera, plus the
+// material toggles. Mounted only when the page is opened with ?inspect.
+function InspectRig() {
+  const { camera } = useThree()
+  const controls = useRef(null)
+  const checker = useMemo(() => makeCheckerTexture(), [])
+  const applied = useRef({ wireframe: null, checker: null })
+
+  // Inspect mode only: no limits on how close or far the camera can go.
+  useEffect(() => {
+    camera.near = 0.01
+    camera.far = 10000
+    camera.updateProjectionMatrix()
+    const instance = controls.current
+    if (instance) {
+      instance.minDistance = 0.05
+      instance.maxDistance = 10000
+      instance.zoomSpeed = 1.6
+      instance.update?.()
+    }
+  }, [camera])
+
+  useEffect(() => {
+    INSPECT.checkerTexture = checker
+    return () => {
+      INSPECT.checkerTexture = null
+      checker.dispose()
+    }
+  }, [checker])
+
+  // Inspect mode only: a handle for poking the fit from the console or a test,
+  // so the live UV change can be verified without the DOM panel.
+  useEffect(() => {
+    window.__cartridgeInspect = { ...(window.__cartridgeInspect || {}), INSPECT, LABEL_FIT }
+    return () => {
+      if (window.__cartridgeInspect?.LABEL_FIT === LABEL_FIT) delete window.__cartridgeInspect
+    }
+  }, [])
+
+  useFrame(() => {
+    if (applied.current.wireframe !== INSPECT.wireframe) {
+      applied.current.wireframe = INSPECT.wireframe
+      INSPECT.allMaterials.forEach((material) => {
+        if (!material) return
+        material.wireframe = INSPECT.wireframe
+        material.needsUpdate = true
+      })
+    }
+    if (applied.current.checker !== INSPECT.checker) {
+      applied.current.checker = INSPECT.checker
+      const next = INSPECT.checker ? INSPECT.checkerTexture : INSPECT.labelTexture
+      const art = INSPECT.art
+      if (art && next) {
+        art.map = next
+        art.needsUpdate = true
+      }
+    }
+    const instance = controls.current
+    if (instance) {
+      instance.enabled = INSPECT.orbit
+      instance.autoRotate = INSPECT.autoRotate
+      instance.autoRotateSpeed = 1.4
+      instance.update()
+    }
+  })
+
+  return <OrbitControls ref={controls} target={[0, 0, 0]} enablePan enableZoom />
+}
+
 /**
  * @param {{ platform: string, platformName: string, title: string, label: string, variant?: string | null }} props
  */
 export default function CartridgeShowcase({ platform, platformName, title, label, variant = null }) {
   const motion = useRef({ x: 0, y: 0, reduced: false })
+  // The inspect panel is a local tool: it only mounts when the page is opened
+  // with ?inspect, so the live one-screen showcase is never affected.
+  const inspect = useMemo(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('inspect'),
+    [],
+  )
   const stage = useRef(null)
   const orientationBaseline = useRef(null)
   const [ready, setReady] = useState(false)
@@ -349,6 +444,7 @@ export default function CartridgeShowcase({ platform, platformName, title, label
           <Suspense fallback={null}>
             <Cartridge platform={platform} variant={variant} label={label} motion={motion} onReady={onReady} />
           </Suspense>
+          {inspect && <InspectRig />}
           {/* Aggressive edge smoothing over the whole frame. The composer
               renders the transparent stage, so the page gradient stays put. */}
           <EffectComposer multisampling={4}>
@@ -361,6 +457,13 @@ export default function CartridgeShowcase({ platform, platformName, title, label
         <span className="showcase-system">{platformName}</span>
         <span className="showcase-game">{title}</span>
       </div>
+      {inspect && (
+        <InspectPanel
+          label={label}
+          faceAspect={LABEL_ASPECT[platform] ?? 1}
+          tabV={MODELS[platform]?.labelFold?.tabV ?? 0}
+        />
+      )}
       {permission === 'request' && !reduced && (
         <button className="showcase-motion" type="button" onClick={enableTilt}>Move with your phone</button>
       )}

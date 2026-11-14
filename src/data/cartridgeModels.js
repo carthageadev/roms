@@ -80,6 +80,26 @@ export const MODELS = {
     shellNodes: ['Shell'],
     innerNodes: ['BoardEdge', 'Board', 'Parts', 'Legs'],
     preserveInnerMaterials: true,
+    // The label sheet is one long strip: front art with the tab folded over
+    // the top edge. The GLB pins every fold vertex to v=0, which smears one
+    // row of pixels across the whole flap. Remap v by arc length along the
+    // cross-section instead: front art on the flat face, tab on the fold.
+    // tabV is the fraction of the image height occupied by the tab.
+    labelFold: {
+      tabV: 0.08,
+      frontTopY: 13.234,
+      frontBottomY: 4.384,
+      foldFromY: 13.25,
+      profile: [
+        [13.234, -0.784],
+        [13.265, -0.771],
+        [13.278, -0.741],
+        [13.286, -0.281],
+        [13.286, -0.15],
+        [13.335, -0.15],
+        [13.335, -0.139],
+      ],
+    },
     // The maps carry the plastic's polish (and the gold's metal), so these
     // values scale them rather than replacing them.
     shellFinish: {

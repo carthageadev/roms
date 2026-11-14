@@ -41,8 +41,8 @@ const FIXTURES = {
     platform: 'nes',
     random: 0.75,
     system: 'Nintendo Entertainment System',
-    game: 'Mega Man 2',
-    label: '/images/labels/mega-man-2.png',
+    game: 'Super Mario Bros. 3',
+    label: '/images/labels/super-mario-bros-3.png',
     forbid: ['/textures/nes/gold/'],
   },
   'nes-gold': {

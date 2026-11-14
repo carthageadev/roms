@@ -49,7 +49,23 @@ const showcaseChoices: ShowcaseChoice[] = platforms.flatMap((platform) => {
 
 // One game per visit, drawn after mount so the server and the client agree
 // on the same first paint. A visit only downloads the shell and label it shows.
+//
+// ?label=zelda-gold pins a specific cart, and ?inspect defaults to the first
+// gold Zelda NES cart so the inspect panel opens on the cart being corrected
+// instead of whatever the random draw picked.
 function pickShowcase(): ShowcaseChoice {
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search);
+    const forced = params.get("label");
+    if (forced) {
+      const hit = showcaseChoices.find((choice) => choice.label.includes(forced));
+      if (hit) return hit;
+    }
+    if (params.has("inspect")) {
+      const nes = showcaseChoices.find((choice) => choice.label.includes("zelda-gold"));
+      if (nes) return nes;
+    }
+  }
   return showcaseChoices[Math.floor(Math.random() * showcaseChoices.length)];
 }
 

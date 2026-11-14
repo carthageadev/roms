@@ -478,6 +478,65 @@ export function TextureWarmup({ queue }) {
   return null
 }
 
+// Remap a label mesh whose texture is one long strip (front art + top tab)
+// so the flat face samples the front art and the folded flap samples the tab.
+// Distances are measured along the cross-section polyline, so the mapping is
+// continuous across the crease instead of pinning the whole flap to v=0.
+function remapLabelUvs(geometry, fold) {
+  const position = geometry?.attributes?.position
+  const uv = geometry?.attributes?.uv
+  if (!position || !uv || geometry.userData.labelFoldMapped) return
+
+  const { tabV, frontTopY, frontBottomY, foldFromY, profile } = fold
+  const segments = []
+  let total = 0
+  for (let i = 0; i < profile.length - 1; i += 1) {
+    const dy = profile[i + 1][0] - profile[i][0]
+    const dz = profile[i + 1][1] - profile[i][1]
+    const length = Math.hypot(dy, dz)
+    segments.push(length)
+    total += length
+  }
+  const arcAt = (y, z) => {
+    let best = Infinity
+    let bestS = 0
+    let acc = 0
+    for (let i = 0; i < segments.length; i += 1) {
+      const [y0, z0] = profile[i]
+      const dy = profile[i + 1][0] - y0
+      const dz = profile[i + 1][1] - z0
+      const lengthSquared = dy * dy + dz * dz
+      let t = lengthSquared === 0 ? 0 : ((y - y0) * dy + (z - z0) * dz) / lengthSquared
+      t = Math.max(0, Math.min(1, t))
+      const py = y0 + t * dy
+      const pz = z0 + t * dz
+      const d = Math.hypot(y - py, z - pz)
+      if (d < best) {
+        best = d
+        bestS = acc + t * segments[i]
+      }
+      acc += segments[i]
+    }
+    return bestS
+  }
+
+  const frontSpan = frontTopY - frontBottomY
+  for (let i = 0; i < position.count; i += 1) {
+    const y = position.getY(i)
+    const z = position.getZ(i)
+    let v
+    if (y > foldFromY) {
+      v = tabV * (1 - arcAt(y, z) / (total || 1))
+    } else {
+      const t = Math.max(0, Math.min(1, (frontTopY - y) / frontSpan))
+      v = tabV + t * (1 - tabV)
+    }
+    uv.setY(i, v)
+  }
+  uv.needsUpdate = true
+  geometry.userData.labelFoldMapped = true
+}
+
 export function prepareModel(scene, config, materialMaps = {}) {
   scene.updateMatrixWorld(true)
   const inverseRoot = scene.matrixWorld.clone().invert()
@@ -504,6 +563,7 @@ export function prepareModel(scene, config, materialMaps = {}) {
     const isLabelNode = matchesNode(object, labelNodes)
     const isInnerNode = matchesNode(object, innerNodes)
     const isShellNode = matchesNode(object, shellNodes)
+    if (isLabelNode && config.labelFold) remapLabelUvs(object.geometry, config.labelFold)
     const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material]
     const materials = sourceMaterials.map((material) => {
       const materialName = material?.name?.toLowerCase()
