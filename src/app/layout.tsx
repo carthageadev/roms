@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   title: "roms.tn  -  The object is the archive",
   description: "A field guide to the physical details of game cartridges: shells, chips, notches, screws, and the small differences between releases.",
   applicationName: "roms.tn",
-  icons: { icon: { url: "/icon.svg", type: "image/svg+xml", sizes: "any" } },
+  icons: { icon: { url: "/cartridge-icon.svg", type: "image/svg+xml", sizes: "any" } },
   openGraph: { title: "roms.tn  -  The object is the archive", description: "A field guide to the physical details of game cartridges.", type: "website" },
 };
 
