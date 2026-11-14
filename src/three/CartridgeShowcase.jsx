@@ -373,13 +373,38 @@ export default function CartridgeShowcase({ platform, platformName, title, label
     window.addEventListener('blur', reset)
 
     const touchDevice = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches
+
+    let removeGestureListeners = null
     if (touchDevice && typeof window.DeviceOrientationEvent !== 'undefined') {
-      setPermission(typeof window.DeviceOrientationEvent.requestPermission === 'function' ? 'request' : 'automatic')
+      if (typeof window.DeviceOrientationEvent.requestPermission === 'function') {
+        // No button: request motion permission inside the first user gesture
+        // on the page, which is the gesture iOS requires.
+        const onFirstGesture = async () => {
+          try {
+            const result = await window.DeviceOrientationEvent.requestPermission()
+            setPermission(result === 'granted' ? 'enabled' : 'denied')
+          } catch {
+            setPermission('denied')
+          } finally {
+            removeGestureListeners?.()
+          }
+        }
+        removeGestureListeners = () => {
+          window.removeEventListener('touchstart', onFirstGesture)
+          window.removeEventListener('pointerdown', onFirstGesture)
+        }
+        window.addEventListener('touchstart', onFirstGesture, { once: true, passive: true })
+        window.addEventListener('pointerdown', onFirstGesture, { once: true })
+        setPermission('pending')
+      } else {
+        setPermission('automatic')
+      }
     }
     return () => {
       preference.removeEventListener('change', updatePreference)
       window.removeEventListener('pointermove', onPointer)
       window.removeEventListener('blur', reset)
+      removeGestureListeners?.()
     }
   }, [])
 
@@ -412,15 +437,6 @@ export default function CartridgeShowcase({ platform, platformName, title, label
       window.removeEventListener('orientationchange', recalibrate)
     }
   }, [permission])
-
-  async function enableTilt() {
-    try {
-      const result = await window.DeviceOrientationEvent.requestPermission()
-      setPermission(result === 'granted' ? 'enabled' : 'denied')
-    } catch {
-      setPermission('denied')
-    }
-  }
 
   const description = `A floating ${platformName} cartridge with a ${title} label`
 
@@ -464,9 +480,7 @@ export default function CartridgeShowcase({ platform, platformName, title, label
           tabV={MODELS[platform]?.labelFold?.tabV ?? 0}
         />
       )}
-      {permission === 'request' && !reduced && (
-        <button className="showcase-motion" type="button" onClick={enableTilt}>Move with your phone</button>
-      )}
+
       {permission === 'denied' && !reduced && (
         <span className="showcase-motion-note">Tilt unavailable</span>
       )}

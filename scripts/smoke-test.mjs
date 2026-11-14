@@ -234,7 +234,8 @@ try {
   for (const outcome of ['granted', 'denied']) {
     const context = await makeContext({ viewport: { width: 390, height: 844 }, platform: 'gba', mobile: true, permission: outcome })
     const opened = await openPage(context, 'gba')
-    await opened.page.getByRole('button', { name: 'Move with your phone' }).tap()
+    // No button: a gesture anywhere on the page requests motion access.
+    await opened.page.locator('.showcase-stage').tap()
     if (outcome === 'granted') {
       await expect(opened.page.getByRole('button', { name: 'Move with your phone' })).toHaveCount(0)
       await dispatchTilt(opened.page, 30, 5)
