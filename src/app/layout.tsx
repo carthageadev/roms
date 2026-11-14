@@ -5,7 +5,7 @@ import "./globals.css";
 import "./home-dark.css";
 import "./coming-soon.css";
 
-const instrumentSans = localFont({ src: "../../public/fonts/instrument-sans.ttf", display: "swap", variable: "--font-instrument-sans", weight: "400 700" });
+const bricolage = localFont({ src: "../../public/fonts/bricolage-grotesque.woff2", display: "swap", variable: "--font-bricolage", weight: "200 800" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://roms.tn"),
@@ -17,5 +17,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="en"><body className={`${instrumentSans.variable} antialiased`}>{children}</body></html>;
+  return <html lang="en"><body className={`${bricolage.variable} antialiased`}>{children}</body></html>;
 }
