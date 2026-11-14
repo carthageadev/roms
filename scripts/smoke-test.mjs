@@ -12,34 +12,34 @@ const browser = await chromium.launch({
 })
 const errors = []
 
-// The showcase picks a system after mount. Pinning Math.random keeps each run
-// deterministic: it draws the platform, then (on the NES) the gold special roll,
-// then one of that system's games. The first two calls stay distinct for React.
+// The showcase picks one game after mount. Pinning Math.random keeps each run
+// deterministic: after React's first two calls, the fixture value selects one
+// entry from the flat game pool. The first two calls stay distinct for React.
 const FIXTURES = {
   gba: {
     platform: 'gba',
-    random: 0.1,
+    random: 0.05,
     system: 'Game Boy Advance',
     game: 'Metroid Fusion',
     label: '/images/labels/metroid-fusion.png',
   },
   nds: {
     platform: 'nds',
-    random: 0.4,
+    random: 0.45,
     system: 'Nintendo DS',
     game: 'New Super Mario Bros.',
     label: '/images/labels/new-super-mario-bros.png',
   },
   snes: {
     platform: 'snes',
-    random: 0.6,
+    random: 0.65,
     system: 'Super Nintendo',
     game: 'Chrono Trigger',
     label: '/images/labels/chrono-trigger.png',
   },
   nes: {
     platform: 'nes',
-    random: 0.9,
+    random: 0.75,
     system: 'Nintendo Entertainment System',
     game: 'Mega Man 2',
     label: '/images/labels/mega-man-2.png',
@@ -47,7 +47,7 @@ const FIXTURES = {
   },
   'nes-gold': {
     platform: 'nes',
-    random: [0.9, 0.05, 0.0],
+    random: 0.85,
     system: 'Nintendo Entertainment System',
     game: 'The Legend of Zelda',
     label: '/images/labels/zelda-gold.png',
@@ -57,7 +57,7 @@ const FIXTURES = {
   },
   'nes-gold-2': {
     platform: 'nes',
-    random: [0.9, 0.05, 0.99],
+    random: 0.95,
     system: 'Nintendo Entertainment System',
     game: 'Zelda II: The Adventure of Link',
     label: '/images/labels/zelda-ii-gold.png',

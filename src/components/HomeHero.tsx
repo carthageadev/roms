@@ -8,7 +8,6 @@ import {
   PLATFORM_NAMES,
   SHOWCASE_PLATFORMS,
   SHOWCASE_SPECIALS,
-  SPECIAL_SPAWN_CHANCE,
 } from "../data/cartridgeModels.js";
 
 // Keep WebGL out of the initial page and leave the copy usable without it.
@@ -34,25 +33,24 @@ const specials = SHOWCASE_SPECIALS as Record<string, Special[]>;
 const names = PLATFORM_NAMES as Record<string, string>;
 const rise = (step: number) => ({ "--rise": step } as CSSProperties);
 
-// One system per visit, drawn after mount so the server and the client agree
-// on the same first paint. A visit only downloads the shell and label it shows.
-// Zelda's gold NES carts are a rare draw within the NES.
-function pickShowcase(): ShowcaseChoice {
-  const platform = platforms[Math.floor(Math.random() * platforms.length)];
-  const skins = specials[platform] ?? [];
-  const special =
-    skins.length > 0 && Math.random() < SPECIAL_SPAWN_CHANCE
-      ? skins[Math.floor(Math.random() * skins.length)]
-      : null;
-  const games = titles[platform] ?? [];
-  const game = special ?? games[Math.floor(Math.random() * games.length)];
-  return {
+// Every game is one entry in a single flat pool, so the draw is even across
+// labels rather than systems. A system with more games appears more often, and
+// the two gold Zelda carts sit in the same pool as every other game.
+const showcaseChoices: ShowcaseChoice[] = platforms.flatMap((platform) => {
+  const games: Special[] = [...(titles[platform] ?? []), ...(specials[platform] ?? [])];
+  return games.map((game) => ({
     platform,
     platformName: names[platform] ?? platform,
-    title: game?.title ?? names[platform] ?? platform,
-    label: game?.cover ?? "/label-placeholder.svg",
-    variant: special?.variant,
-  };
+    title: game.title,
+    label: game.cover,
+    variant: game.variant,
+  }));
+});
+
+// One game per visit, drawn after mount so the server and the client agree
+// on the same first paint. A visit only downloads the shell and label it shows.
+function pickShowcase(): ShowcaseChoice {
+  return showcaseChoices[Math.floor(Math.random() * showcaseChoices.length)];
 }
 
 export function HomeHero() {

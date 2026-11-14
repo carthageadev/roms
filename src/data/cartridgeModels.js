@@ -120,15 +120,14 @@ export const MODELS = {
 
 export const PLATFORM_ORDER = ['n64', 'gba', 'nds', 'switch']
 
-// One cartridge at a time on the home page, a different system per visit.
-// The games behind these are the ones whose labels already live in
-// public/images/labels, so a visit only ever downloads one model and one label.
+// One cartridge at a time on the home page, drawn from a flat pool of every
+// showcased game. The games behind these are the ones whose labels already
+// live in public/images/labels, so a visit only ever downloads one model and
+// one label.
 export const SHOWCASE_PLATFORMS = ['gba', 'nds', 'snes', 'nes']
 
-// A visit that draws the NES can instead draw one of its gold Zelda Game
-// Paks. The chance is rolled once, after the platform, and only systems with
-// specials take part, so every other system still draws exactly one game.
-export const SPECIAL_SPAWN_CHANCE = 0.35
+// The gold Zelda NES Game Paks join the same pool as every other game, so they
+// are no rarer than any other draw. Their `variant` selects the gold skin.
 export const SHOWCASE_SPECIALS = {
   nes: [
     { title: 'The Legend of Zelda', cover: '/images/labels/zelda-gold.png', variant: 'gold' },
