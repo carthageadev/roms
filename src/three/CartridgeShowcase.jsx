@@ -5,7 +5,7 @@ import { EffectComposer, FXAA, ToneMapping } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
 import * as THREE from 'three'
 import { LABEL_ASPECT, MODELS } from '../data/cartridgeModels.js'
-import { configureShellMaterial, labelFinishParameters, prepareModel, SceneLighting } from './Scene.jsx'
+import { configureShellMaterial, prepareModel, SceneLighting } from './Scene.jsx'
 import { RoomEnvironment } from './roomEnvironment.js'
 import { INSPECT, LABEL_FIT, makeCheckerTexture } from './inspectState.js'
 import { InspectPanel } from './InspectPanel.jsx'
@@ -116,7 +116,6 @@ function Cartridge({ platform, variant, label, motion, onReady }) {
           clearcoatRoughness: 0.42,
         })
       : null
-    const finish = labelFinishParameters('default')
     const labelUv = config.labelUv
     const uvWindow = new THREE.Vector4(
       labelUv?.u?.[0] ?? 0,
@@ -126,10 +125,13 @@ function Cartridge({ platform, variant, label, motion, onReady }) {
     )
     const art = new THREE.MeshPhysicalMaterial({
       map: artTexture,
-      roughness: finish.roughness,
-      metalness: finish.metalness,
-      clearcoat: finish.clearcoat,
-      clearcoatRoughness: 0.12,
+      // A cartridge sticker is printed paper, not a glossy surface. A matte,
+      // uncoated finish keeps the label readable when it tilts toward the
+      // light instead of washing the whole image out.
+      roughness: 0.9,
+      metalness: 0,
+      clearcoat: 0,
+      envMapIntensity: 0,
       side: THREE.DoubleSide,
       polygonOffset: true,
       polygonOffsetFactor: -1,
