@@ -465,9 +465,17 @@ export default function CartridgeShowcase({ platform, platformName, title, label
           {inspect && <InspectRig />}
           {/* Aggressive edge smoothing over the whole frame. The composer
               renders the transparent stage, so the page gradient stays put. */}
-          <EffectComposer multisampling={4}>
+          <EffectComposer multisampling={0}>
             <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-            <FXAA />
+            {/* FXAA at full resolution, tuned for the softest pass: low edge
+                thresholds blend more pixels and subpixelQuality 1 maximises the
+                smoothing, giving the gentle, slightly soft look. */}
+            <FXAA
+              minEdgeThreshold={0}
+              maxEdgeThreshold={0.05}
+              subpixelQuality={1}
+              samples={12}
+            />
           </EffectComposer>
         </Canvas>
       </div>
